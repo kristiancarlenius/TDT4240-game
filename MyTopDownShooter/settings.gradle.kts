@@ -1,2 +1,2 @@
 rootProject.name = "MyTopDownShooter"
-include("server", "shared", "core", "android")
+include("server", "shared", "core", "android", "desktop")
