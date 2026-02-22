@@ -3,8 +3,11 @@ package com.mygame.shared.util;
 import java.util.Objects;
 
 public final class Vec2 {
-    public final float x;
-    public final float y;
+    public float x;
+    public float y;
+
+    // Jackson needs a no-arg constructor
+    public Vec2() {}
 
     public Vec2(float x, float y) {
         this.x = x;

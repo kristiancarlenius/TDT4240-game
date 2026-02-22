@@ -6,7 +6,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.Vector3;
 import com.mygame.client.net.NetClient;
 import com.mygame.client.net.NetListener;
 import com.mygame.shared.dto.GameSnapshotDto;
@@ -130,10 +130,8 @@ public final class GameClientApp extends ApplicationAdapter implements NetListen
         if (me == null || me.pos == null) return new Vec2(1f, 0f);
 
         // Screen → world
-        Vector2 mouseScreen = new Vector2(Gdx.input.getX(), Gdx.input.getY());
-        Vector2 mouseWorld = new Vector2(mouseScreen);
+        Vector3 mouseWorld = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0f);
         camera.unproject(mouseWorld);
-
         float ax = mouseWorld.x - me.pos.x;
         float ay = mouseWorld.y - me.pos.y;
         float len2 = ax * ax + ay * ay;

@@ -8,8 +8,12 @@ repositories {
 
 dependencies {
     implementation(project(":shared"))
-    implementation("org.java-websocket:Java-WebSocket:1.6.0") // WebSocket client
-    // libGDX deps are usually already here via root gradle; keep what you already have
+
+    // libGDX core API
+    implementation("com.badlogicgames.gdx:gdx:1.12.1")
+
+    // WebSocket client
+    implementation("org.java-websocket:Java-WebSocket:1.6.0")
 }
 
 java {
