@@ -9,7 +9,7 @@ repositories {
 
 dependencies {
     implementation(project(":shared"))
-    implementation("org.java-websocket:Java-WebSocket:1.6.0") // WebSocket server/client lib
+    implementation("org.java-websocket:Java-WebSocket:1.6.0")
 }
 
 application {
@@ -18,6 +18,6 @@ application {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(11))
     }
 }
