@@ -1,6 +1,13 @@
-// TODO: configure multi-module Gradle build
 plugins {
-    id("com.android.application")
+    java
 }
-sourceCompatibility = JavaVersion.VERSION_17
-targetCompatibility = JavaVersion.VERSION_17
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.17.2")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.17.2")
+}

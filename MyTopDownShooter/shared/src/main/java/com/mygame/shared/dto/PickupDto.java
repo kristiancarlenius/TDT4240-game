@@ -1,8 +1,17 @@
-package com.mygame.shared.dto
+package com.mygame.shared.dto;
 
-data class PickupDto(
-    val id: String,
-    val type: String,
-    val x: Float,
-    val y: Float
-)
+import com.mygame.shared.util.Vec2;
+
+public final class PickupDto {
+    public String pickupId;
+    public PickupType type;
+    public Vec2 pos;
+
+    public float healthAmount;
+
+    public float speedboost;
+    
+    public WeaponDto weapon;
+
+    public PickupDto() {}
+}
