@@ -21,7 +21,7 @@ public final class ServerGameState {
     public long tick = 0;
 
     public final Map<String, PlayerState> players = new ConcurrentHashMap<>();
-    public final List<ProjectileDto> projectiles = Collections.synchronizedList(new ArrayList<>());
+    public final List<ProjectileState> projectiles = Collections.synchronizedList(new ArrayList<>());
     public final List<PickupDto> pickups = Collections.synchronizedList(new ArrayList<>());
 
     private int spawnIndex = 0;
@@ -112,5 +112,15 @@ public final class ServerGameState {
 
     private static int idx(int x, int y, int width) {
         return y * width + x;
+    }
+
+    public boolean isProjectileBlockedWorld(float wx, float wy) {
+        int tx = (int)Math.floor(wx);
+        int ty = (int)Math.floor(wy);
+        if (!inBounds(tx, ty)) return true; // outside map blocks
+
+        TileType tt = tiles[idx(tx, ty, width)];
+        // Projectiles: WALL blocks, everything else passes (WINDOW passes)
+        return tt == TileType.WALL;
     }
 }

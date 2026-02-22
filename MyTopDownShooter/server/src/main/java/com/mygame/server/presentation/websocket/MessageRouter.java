@@ -68,6 +68,9 @@ public final class MessageRouter {
 
             conn.send(codec.encode(new ErrorMessage("unknown_message", "Unsupported message")));
         } catch (Exception e) {
+            System.err.println("\n[WS] DECODE FAILED");
+            System.err.println("[WS] raw: " + json);
+            e.printStackTrace();
             conn.send(codec.encode(new ErrorMessage("decode_error", "Invalid message format")));
         }
     }

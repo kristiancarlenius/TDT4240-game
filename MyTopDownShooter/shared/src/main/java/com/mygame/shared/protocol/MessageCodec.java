@@ -4,13 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mygame.shared.protocol.messages.*;
-
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import java.util.HashMap;
 import java.util.Map;
 
 public final class MessageCodec {
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     // map type -> class
     private final Map<String, Class<?>> typeToClass = new HashMap<>();

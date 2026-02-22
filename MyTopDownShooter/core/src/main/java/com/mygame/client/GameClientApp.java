@@ -82,8 +82,11 @@ public final class GameClientApp extends ApplicationAdapter implements NetListen
         shapes.begin(ShapeRenderer.ShapeType.Filled);
 
         if (map != null) drawMap(map);
-        if (snap != null) drawPlayers(snap);
-
+        if (snap != null){ 
+            drawPlayers(snap); 
+            drawProjectiles(snap); 
+        }
+        
         shapes.end();
     }
 
@@ -192,6 +195,17 @@ public final class GameClientApp extends ApplicationAdapter implements NetListen
                         0.06f
                 );
             }
+        }
+    }
+    
+    private void drawProjectiles(GameSnapshotDto snap) {
+        if (snap.projectiles == null) return;
+
+        shapes.setColor(0.95f, 0.90f, 0.20f, 1f);
+        for (var pr : snap.projectiles) {
+            if (pr == null || pr.pos == null) continue;
+            float r = pr.radius > 0 ? pr.radius : 0.10f;
+            shapes.circle(pr.pos.x, pr.pos.y, r, 12);
         }
     }
 

@@ -85,7 +85,9 @@ public final class NetClient {
 
     public void sendInput(InputMessage input) {
         if (ws == null || !ws.isOpen()) return;
-        ws.send(codec.encode(input));
+        String json = codec.encode(input);
+        System.out.println("[CLIENT] -> " + json);
+        ws.send(json);
     }
 
     public void close() {
