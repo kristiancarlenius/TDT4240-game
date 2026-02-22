@@ -1,3 +1,5 @@
-package com.mygame.shared.protocol
+package com.mygame.shared.protocol;
 
-sealed interface ClientMessage
+public interface ClientMessage {
+    String type();
+}
