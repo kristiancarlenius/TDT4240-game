@@ -2,6 +2,7 @@ package com.mygame.server.domain.model;
 
 import com.mygame.shared.dto.PlayerDto;
 import com.mygame.shared.util.Vec2;
+import com.mygame.shared.dto.WeaponType;
 
 public final class PlayerState {
     public final String playerId;
@@ -16,10 +17,10 @@ public final class PlayerState {
 
     public float radius = 0.30f;           // player hit radius in world units (tile units)
     public float shootCooldownSeconds = 0f; // fire-rate limiter
-    
-    // weapon fields later
-    public String equippedWeaponId = "pistol_t1";
-    public int equippedAmmo = 999;
+
+    public WeaponType equippedWeaponType = WeaponType.CROSSBOW; // start weapon
+    public int equippedAmmo = 25; // will be set from registry on join
+    public int lastSwitchSeq = 0; // edge-detect switchWeapon
 
     public PlayerState(String playerId, String username, Vec2 spawnPos) {
         this.playerId = playerId;
@@ -36,7 +37,7 @@ public final class PlayerState {
                 facing,
                 hp,
                 moveSpeed,
-                equippedWeaponId,
+                equippedWeaponType,
                 equippedAmmo
         );
     }

@@ -13,11 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class MatchService {
 
     private final ServerGameState state;
-    private static final float PISTOL_DAMAGE = 25f;
-    private static final float PISTOL_PROJECTILE_SPEED = 12f;
-    private static final float PISTOL_PROJECTILE_RADIUS = 0.12f;
-    private static final float PISTOL_TTL = 2.0f;
-    private static final float PISTOL_FIRE_RATE = 6f; // shots per second
+    private final com.mygame.server.data.weapon.WeaponRegistry weaponRegistry = new com.mygame.server.data.weapon.WeaponRegistry();
 
     // Latest input per player (MVP: last-write-wins)
     private final Map<String, InputMessage> latestInput = new ConcurrentHashMap<>();
@@ -87,13 +83,33 @@ public final class MatchService {
             // cooldown tick
             p.shootCooldownSeconds = Math.max(0f, p.shootCooldownSeconds - dt);
 
-            // shooting
+            // edge-detect switch weapon (InputMessage.switchWeapon is "pressed" on client side)
+            if (in != null && in.switchWeapon && in.seq > p.lastSwitchSeq) {
+                p.lastSwitchSeq = in.seq;
+                WeaponType next = weaponRegistry.nextInCycle(p.equippedWeaponType);
+                p.equippedWeaponType = next;
+
+                var spec = weaponRegistry.get(next);
+                // MVP: refill ammo when switching (later: per-weapon ammo/inventory)
+                p.equippedAmmo = spec.maxAmmo;
+                p.shootCooldownSeconds = 0f;
+            }
+
+            // cooldown tick
+            p.shootCooldownSeconds = Math.max(0f, p.shootCooldownSeconds - dt);
+
+            // shooting (level-triggered + server fire-rate)
             boolean wantsShoot = (in != null) && in.shoot;
-            if (wantsShoot && p.shootCooldownSeconds <= 0f && p.equippedAmmo > 0) {
-                spawnPistolProjectile(p);
-                p.equippedAmmo -= 1;
-                p.shootCooldownSeconds = 1f / PISTOL_FIRE_RATE;
-}
+            if (wantsShoot) {
+                WeaponType wt = p.equippedWeaponType;
+                var spec = weaponRegistry.get(wt);
+
+                if (p.shootCooldownSeconds <= 0f && p.equippedAmmo > 0) {
+                    spawnProjectilesForWeapon(p, spec);
+                    p.equippedAmmo -= 1;
+                    p.shootCooldownSeconds = 1f / spec.fireRate;
+                }
+            }
 
             // TRAP damage (MVP): if standing on trap tile
             if (state.isTrapAtWorld(p.pos.x, p.pos.y)) {
@@ -123,24 +139,45 @@ public final class MatchService {
         return Math.max(lo, Math.min(hi, v));
     }
 
-    private void spawnPistolProjectile(PlayerState p) {
+    private void spawnProjectilesForWeapon(PlayerState p, com.mygame.server.domain.model.WeaponSpec spec) {
         // spawn slightly in front of player
         float sx = p.pos.x + p.facing.x * (p.radius + 0.15f);
         float sy = p.pos.y + p.facing.y * (p.radius + 0.15f);
 
-        float vx = p.facing.x * PISTOL_PROJECTILE_SPEED;
-        float vy = p.facing.y * PISTOL_PROJECTILE_SPEED;
+        // pellets (shotgun etc.)
+        int pellets = Math.max(1, spec.pellets);
 
-        String projId = UUID.randomUUID().toString();
-        state.projectiles.add(new com.mygame.server.domain.model.ProjectileState(
-                projId,
-                p.playerId,
-                new Vec2(sx, sy),
-                new Vec2(vx, vy),
-                PISTOL_DAMAGE,
-                PISTOL_PROJECTILE_RADIUS,
-                PISTOL_TTL
-        ));
+        for (int k = 0; k < pellets; k++) {
+            // apply random spread around facing
+            float fx = p.facing.x;
+            float fy = p.facing.y;
+
+            if (spec.spreadRadians > 0f) {
+                float angle = (float)Math.atan2(fy, fx);
+                float jitter = (randomFloat(-1f, 1f) * spec.spreadRadians);
+                float a = angle + jitter;
+                fx = (float)Math.cos(a);
+                fy = (float)Math.sin(a);
+            }
+
+            float vx = fx * spec.projectileSpeed;
+            float vy = fy * spec.projectileSpeed;
+
+            String projId = java.util.UUID.randomUUID().toString();
+            state.projectiles.add(new com.mygame.server.domain.model.ProjectileState(
+                    projId,
+                    p.playerId,
+                    new com.mygame.shared.util.Vec2(sx, sy),
+                    new com.mygame.shared.util.Vec2(vx, vy),
+                    spec.damage,
+                    spec.projectileRadius,
+                    spec.ttlSeconds
+            ));
+        }
+    }
+
+    private static float randomFloat(float lo, float hi) {
+        return lo + (float)Math.random() * (hi - lo);
     }
 
     private void simulateProjectiles(float dt) {
