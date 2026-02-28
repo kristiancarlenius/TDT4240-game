@@ -1,3 +1,0 @@
-# MyTopDownShooter
-
-Generated skeleton.
