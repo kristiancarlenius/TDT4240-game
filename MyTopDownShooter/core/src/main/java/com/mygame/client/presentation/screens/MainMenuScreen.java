@@ -20,10 +20,14 @@ public final class MainMenuScreen implements Screen {
     private static final int BTN_W   = 220;
     private static final int BTN_H   = 46;
     private static final int MAX_USERNAME_LEN = 20;
+    private static final int MAX_URL_LEN      = 60;
 
     private final Navigator navigator;
-    private final String serverUrl;
+    private String serverUrl;
     private String username;
+
+    // Which field is focused: 0 = server URL, 1 = username
+    private int focusedField = 1;
 
     // Rendering resources (created in show())
     private ShapeRenderer shapes;
@@ -40,8 +44,16 @@ public final class MainMenuScreen implements Screen {
     private final InputAdapter inputAdapter = new InputAdapter() {
         @Override
         public boolean keyDown(int keycode) {
-            if (keycode == Keys.BACKSPACE && username.length() > 0) {
-                username = username.substring(0, username.length() - 1);
+            if (keycode == Keys.TAB) {
+                focusedField = 1 - focusedField;
+                return true;
+            }
+            if (keycode == Keys.BACKSPACE) {
+                if (focusedField == 0 && serverUrl.length() > 0) {
+                    serverUrl = serverUrl.substring(0, serverUrl.length() - 1);
+                } else if (focusedField == 1 && username.length() > 0) {
+                    username = username.substring(0, username.length() - 1);
+                }
                 return true;
             }
             if (keycode == Keys.ENTER || keycode == Keys.NUMPAD_ENTER) {
@@ -53,8 +65,12 @@ public final class MainMenuScreen implements Screen {
 
         @Override
         public boolean keyTyped(char c) {
-            // Accept printable ASCII, reject control chars and backspace (handled in keyDown)
-            if (c >= 32 && c < 127 && username.length() < MAX_USERNAME_LEN) {
+            if (c < 32 || c >= 127) return false;
+            if (focusedField == 0 && serverUrl.length() < MAX_URL_LEN) {
+                serverUrl += c;
+                return true;
+            }
+            if (focusedField == 1 && username.length() < MAX_USERNAME_LEN) {
                 username += c;
                 return true;
             }
@@ -65,10 +81,27 @@ public final class MainMenuScreen implements Screen {
         public boolean touchDown(int screenX, int screenY, int pointer, int button) {
             int sw = Gdx.graphics.getWidth();
             int sh = Gdx.graphics.getHeight();
+            int worldY = sh - screenY;
+
+            // URL field
+            int urlX = (sw - FIELD_W) / 2;
+            int urlY = sh / 2 + 60;
+            if (screenX >= urlX && screenX <= urlX + FIELD_W
+                    && worldY >= urlY && worldY <= urlY + FIELD_H) {
+                focusedField = 0;
+                return true;
+            }
+            // Username field
+            int fieldX = (sw - FIELD_W) / 2;
+            int fieldY = sh / 2 - 10;
+            if (screenX >= fieldX && screenX <= fieldX + FIELD_W
+                    && worldY >= fieldY && worldY <= fieldY + FIELD_H) {
+                focusedField = 1;
+                return true;
+            }
+            // Connect button
             int btnX = (sw - BTN_W) / 2;
             int btnY = sh / 2 - 90;
-            // LibGDX touch Y is from top; convert to bottom-left origin
-            int worldY = sh - screenY;
             if (screenX >= btnX && screenX <= btnX + BTN_W
                     && worldY >= btnY && worldY <= btnY + BTN_H) {
                 tryConnect();
@@ -80,7 +113,7 @@ public final class MainMenuScreen implements Screen {
 
     public MainMenuScreen(Navigator navigator, String serverUrl, String defaultUsername) {
         this.navigator  = navigator;
-        this.serverUrl  = serverUrl;
+        this.serverUrl  = serverUrl != null ? serverUrl : "";
         this.username   = defaultUsername != null ? defaultUsername : "";
     }
 
@@ -114,6 +147,8 @@ public final class MainMenuScreen implements Screen {
         Gdx.gl.glClearColor(0.08f, 0.08f, 0.10f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+        int urlX   = (sw - FIELD_W) / 2;
+        int urlY   = sh / 2 + 60;
         int fieldX = (sw - FIELD_W) / 2;
         int fieldY = sh / 2 - 10;
         int btnX   = (sw - BTN_W)  / 2;
@@ -123,16 +158,15 @@ public final class MainMenuScreen implements Screen {
         shapes.setProjectionMatrix(proj);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
 
+        // Server URL field background
+        shapes.setColor(0.18f, 0.18f, 0.22f, 1f);
+        shapes.rect(urlX, urlY, FIELD_W, FIELD_H);
+        drawFieldBorder(urlX, urlY, focusedField == 0);
+
         // Username field background
         shapes.setColor(0.18f, 0.18f, 0.22f, 1f);
         shapes.rect(fieldX, fieldY, FIELD_W, FIELD_H);
-
-        // Field border highlight
-        shapes.setColor(0.35f, 0.55f, 0.85f, 1f);
-        shapes.rectLine(fieldX, fieldY, fieldX + FIELD_W, fieldY, 2f);
-        shapes.rectLine(fieldX, fieldY + FIELD_H, fieldX + FIELD_W, fieldY + FIELD_H, 2f);
-        shapes.rectLine(fieldX, fieldY, fieldX, fieldY + FIELD_H, 2f);
-        shapes.rectLine(fieldX + FIELD_W, fieldY, fieldX + FIELD_W, fieldY + FIELD_H, 2f);
+        drawFieldBorder(fieldX, fieldY, focusedField == 1);
 
         // Connect button
         shapes.setColor(0.15f, 0.50f, 0.80f, 1f);
@@ -150,13 +184,19 @@ public final class MainMenuScreen implements Screen {
         layout.setText(titleFont, title);
         titleFont.draw(batch, title, (sw - layout.width) / 2f, sh * 0.76f);
 
-        // Field label
+        // Server URL label + content
+        font.setColor(Color.LIGHT_GRAY);
+        font.draw(batch, "Server URL", urlX, urlY + FIELD_H + 24f);
+        font.setColor(Color.WHITE);
+        String urlDisplay = serverUrl + (focusedField == 0 && showCursor ? "|" : "");
+        font.draw(batch, urlDisplay, urlX + 10f, urlY + FIELD_H - 6f);
+
+        // Username label + content
         font.setColor(Color.LIGHT_GRAY);
         font.draw(batch, "Username", fieldX, fieldY + FIELD_H + 24f);
-
-        // Field content + blinking cursor
         font.setColor(Color.WHITE);
-        font.draw(batch, username + (showCursor ? "|" : " "), fieldX + 10f, fieldY + FIELD_H - 6f);
+        String nameDisplay = username + (focusedField == 1 && showCursor ? "|" : "");
+        font.draw(batch, nameDisplay, fieldX + 10f, fieldY + FIELD_H - 6f);
 
         // Button label
         font.setColor(Color.WHITE);
@@ -167,7 +207,7 @@ public final class MainMenuScreen implements Screen {
         // Hint
         font.setColor(0.45f, 0.45f, 0.50f, 1f);
         font.getData().setScale(1.1f);
-        String hint = "Press ENTER or click CONNECT";
+        String hint = "TAB to switch fields  •  ENTER to connect";
         layout.setText(font, hint);
         font.draw(batch, hint, (sw - layout.width) / 2f, btnY - 18f);
         font.getData().setScale(1.5f);
@@ -198,15 +238,27 @@ public final class MainMenuScreen implements Screen {
 
     // ---- Helpers ----
 
+    /** Draws a border around a field. shapes must be in Filled begin/end block. */
+    private void drawFieldBorder(int x, int y, boolean focused) {
+        shapes.setColor(focused ? 0.45f : 0.28f,
+                        focused ? 0.65f : 0.28f,
+                        focused ? 0.95f : 0.35f, 1f);
+        shapes.rectLine(x,          y,          x + FIELD_W, y,          2f);
+        shapes.rectLine(x,          y + FIELD_H, x + FIELD_W, y + FIELD_H, 2f);
+        shapes.rectLine(x,          y,          x,           y + FIELD_H, 2f);
+        shapes.rectLine(x + FIELD_W, y,          x + FIELD_W, y + FIELD_H, 2f);
+    }
+
     private void rebuildProj() {
         if (proj == null) proj = new Matrix4();
         proj.setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
     }
 
     private void tryConnect() {
+        String url  = serverUrl.trim();
         String name = username.trim();
-        if (!name.isEmpty()) {
-            navigator.showGame(serverUrl, name);
+        if (!url.isEmpty() && !name.isEmpty()) {
+            navigator.showGame(url, name);
         }
     }
 }

@@ -1,7 +1,9 @@
 package com.mygame.client.presentation.screens;
 
+import com.badlogic.gdx.Application;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
@@ -15,6 +17,7 @@ import com.badlogic.gdx.math.Vector3;
 import com.mygame.client.net.NetClient;
 import com.mygame.client.net.NetListener;
 import com.mygame.client.presentation.navigation.Navigator;
+import com.mygame.client.presentation.view.input.VirtualJoystickView;
 import com.mygame.shared.dto.*;
 import com.mygame.shared.protocol.messages.InputMessage;
 import com.mygame.shared.util.Vec2;
@@ -50,6 +53,14 @@ public final class GameScreen implements Screen, NetListener {
     private final GlyphLayout  layout = new GlyphLayout();
     private Matrix4            screenProj;
 
+    // Touch controls (Android only, created in show() when platform == Android)
+    private VirtualJoystickView moveStick;
+    private VirtualJoystickView aimStick;
+    // Weapon-switch button bounds (screen pixels, bottom-left origin)
+    private float   switchBtnX, switchBtnY, switchBtnR;
+    // Set true when the switch button is tapped; consumed in sendInput()
+    private boolean touchSwitchPending = false;
+
     public GameScreen(Navigator navigator, String serverUrl, String username) {
         this.navigator = navigator;
         this.serverUrl = serverUrl;
@@ -73,8 +84,62 @@ public final class GameScreen implements Screen, NetListener {
         screenProj = new Matrix4();
         rebuildScreenProj();
 
+        if (Gdx.app.getType() == Application.ApplicationType.Android) {
+            setupTouchControls();
+        }
+
         net = new NetClient(serverUrl, username, this);
         net.connectAsync();
+    }
+
+    private void setupTouchControls() {
+        int sw = Gdx.graphics.getWidth();
+        int sh = Gdx.graphics.getHeight();
+
+        // Left stick: lower-left quadrant
+        moveStick = new VirtualJoystickView(sw * 0.18f, sh * 0.22f);
+        // Right stick: lower-right quadrant
+        aimStick  = new VirtualJoystickView(sw * 0.82f, sh * 0.22f);
+        // Weapon-switch button: above right stick
+        switchBtnX = sw * 0.82f;
+        switchBtnY = sh * 0.42f;
+        switchBtnR = 40f;
+
+        Gdx.input.setInputProcessor(new InputAdapter() {
+            private int switchPointer = -1;
+
+            @Override
+            public boolean touchDown(int sx, int sy, int pointer, int button) {
+                int sh = Gdx.graphics.getHeight();
+                float bx = sx - switchBtnX;
+                float by = (sh - sy) - switchBtnY;
+                if (bx * bx + by * by <= switchBtnR * switchBtnR && switchPointer == -1) {
+                    switchPointer      = pointer;
+                    touchSwitchPending = true;
+                    return true;
+                }
+                if (moveStick.touchDown(sx, sy, pointer, sh)) return true;
+                if (aimStick.touchDown(sx, sy, pointer, sh))  return true;
+                return false;
+            }
+
+            @Override
+            public boolean touchDragged(int sx, int sy, int pointer) {
+                int sh = Gdx.graphics.getHeight();
+                if (moveStick.touchDragged(sx, sy, pointer, sh)) return true;
+                if (aimStick.touchDragged(sx, sy, pointer, sh))  return true;
+                return false;
+            }
+
+            @Override
+            public boolean touchUp(int sx, int sy, int pointer, int button) {
+                if (pointer == switchPointer) { switchPointer = -1; return true; }
+                int sh = Gdx.graphics.getHeight();
+                if (moveStick.touchUp(sx, sy, pointer)) return true;
+                if (aimStick.touchUp(sx, sy, pointer))  return true;
+                return false;
+            }
+        });
     }
 
     @Override
@@ -128,7 +193,11 @@ public final class GameScreen implements Screen, NetListener {
 
     @Override public void pause()  {}
     @Override public void resume() {}
-    @Override public void hide()   {}
+
+    @Override
+    public void hide() {
+        Gdx.input.setInputProcessor(null);
+    }
 
     @Override
     public void dispose() {
@@ -216,6 +285,7 @@ public final class GameScreen implements Screen, NetListener {
     private void drawHud(PlayerDto me, GameSnapshotDto snap) {
         if (me.isDead) {
             drawDeathOverlay(me);
+            if (moveStick != null) drawTouchControls();
             return;
         }
 
@@ -269,6 +339,39 @@ public final class GameScreen implements Screen, NetListener {
         }
 
         batch.end();
+
+        if (moveStick != null) {
+            drawTouchControls();
+        }
+    }
+
+    private void drawTouchControls() {
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
+        shapes.setProjectionMatrix(screenProj);
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+
+        moveStick.render(shapes);
+        aimStick.render(shapes);
+
+        // Weapon-switch button
+        shapes.setColor(0.55f, 0.30f, 0.80f, 0.75f);
+        shapes.circle(switchBtnX, switchBtnY, switchBtnR, 24);
+        shapes.setColor(0.35f, 0.15f, 0.55f, 0.85f);
+        shapes.circle(switchBtnX, switchBtnY, switchBtnR - 5f, 24);
+
+        shapes.end();
+
+        // "SW" label on switch button
+        batch.setProjectionMatrix(screenProj);
+        batch.begin();
+        font.setColor(Color.WHITE);
+        layout.setText(font, "SW");
+        font.draw(batch, "SW",
+                switchBtnX - layout.width / 2f,
+                switchBtnY + layout.height / 2f);
+        batch.end();
     }
 
     private void drawDeathOverlay(PlayerDto me) {
@@ -314,15 +417,35 @@ public final class GameScreen implements Screen, NetListener {
 
     private void sendInput() {
         if (net == null || !net.isOpen()) return;
-        float mx = 0f, my = 0f;
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) mx -= 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) mx += 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) my -= 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) my += 1f;
-        Vec2 aim         = computeAimVector();
-        boolean shoot    = Gdx.input.isButtonPressed(Input.Buttons.LEFT);
-        boolean switchWp = Gdx.input.isKeyJustPressed(Input.Keys.SPACE);
-        net.sendInput(new InputMessage(seq.getAndIncrement(), new Vec2(mx, my), aim, shoot, switchWp));
+
+        Vec2    move;
+        Vec2    aim;
+        boolean shoot;
+        boolean switchWp;
+
+        if (moveStick != null) {
+            // Android touch controls
+            move     = moveStick.getDirection();
+            Vec2 aimDir = aimStick.getDirection();
+            // If aim stick is idle, keep last facing (send zero → server ignores)
+            aim      = aimDir;
+            shoot    = aimStick.isActive();  // auto-shoot when aim stick is held
+            switchWp = touchSwitchPending;
+            touchSwitchPending = false;
+        } else {
+            // Desktop keyboard + mouse
+            float mx = 0f, my = 0f;
+            if (Gdx.input.isKeyPressed(Input.Keys.A)) mx -= 1f;
+            if (Gdx.input.isKeyPressed(Input.Keys.D)) mx += 1f;
+            if (Gdx.input.isKeyPressed(Input.Keys.S)) my -= 1f;
+            if (Gdx.input.isKeyPressed(Input.Keys.W)) my += 1f;
+            move     = new Vec2(mx, my);
+            aim      = computeAimVector();
+            shoot    = Gdx.input.isButtonPressed(Input.Buttons.LEFT);
+            switchWp = Gdx.input.isKeyJustPressed(Input.Keys.SPACE);
+        }
+
+        net.sendInput(new InputMessage(seq.getAndIncrement(), move, aim, shoot, switchWp));
     }
 
     private Vec2 computeAimVector() {
