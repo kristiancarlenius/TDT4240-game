@@ -1,0 +1,37 @@
+{
+  "weapons": [
+    {
+      "type": "CROSSBOW",
+      "damage": 55.0,
+      "projectileSpeed": 10.0,
+      "projectileRadius": 0.12,
+      "ttlSeconds": 2.0,
+      "fireRate": 1.2,
+      "maxAmmo": 25,
+      "pellets": 1,
+      "spreadRadians": 0.0
+    },
+    {
+      "type": "PISTOL",
+      "damage": 25.0,
+      "projectileSpeed": 12.0,
+      "projectileRadius": 0.12,
+      "ttlSeconds": 2.0,
+      "fireRate": 6.0,
+      "maxAmmo": 120,
+      "pellets": 1,
+      "spreadRadians": 0.03
+    },
+    {
+      "type": "SHOTGUN",
+      "damage": 12.0,
+      "projectileSpeed": 11.0,
+      "projectileRadius": 0.11,
+      "ttlSeconds": 1.2,
+      "fireRate": 1.0,
+      "maxAmmo": 40,
+      "pellets": 6,
+      "spreadRadians": 0.25
+    }
+  ]
+}

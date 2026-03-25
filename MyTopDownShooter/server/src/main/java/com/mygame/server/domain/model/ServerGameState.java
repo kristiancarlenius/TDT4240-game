@@ -34,6 +34,12 @@ public final class ServerGameState {
         this.tiles = tiles;
     }
 
+    /** Creates a state from a pre-built tile array (used by MapParser). */
+    public static ServerGameState fromTiles(String mapId, int width, int height, TileType[] tiles) {
+        return new ServerGameState(mapId, width, height, tiles);
+    }
+
+    /** Fallback: programmatically generates a plain map with border walls + a few obstacles. */
     public static ServerGameState createWithBorderWalls(String mapId, int width, int height) {
         TileType[] t = new TileType[width * height];
         Arrays.fill(t, TileType.FLOOR);

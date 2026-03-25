@@ -18,7 +18,7 @@ public final class MatchService {
     private static final float COLLECT_RADIUS = 0.55f;
 
     private final ServerGameState state;
-    private final com.mygame.server.data.weapon.WeaponRegistry weaponRegistry = new com.mygame.server.data.weapon.WeaponRegistry();
+    private final com.mygame.server.data.weapon.WeaponRegistry weaponRegistry;
     private final java.util.Random rng = new java.util.Random();
 
     private float pickupSpawnTimer = 3f; // first chest after 3 s
@@ -27,7 +27,29 @@ public final class MatchService {
     private final Map<String, InputMessage> latestInput = new ConcurrentHashMap<>();
 
     public MatchService() {
-        this.state = ServerGameState.createWithBorderWalls("map01", 30, 20);
+        this.state = loadMap("/maps/map01.json");
+        this.weaponRegistry = loadWeapons("/weapons/weapons.json");
+    }
+
+    private static ServerGameState loadMap(String resource) {
+        try {
+            ServerGameState s = com.mygame.server.data.map.MapParser.load(resource);
+            System.out.println("[MATCH] Loaded map '" + s.mapId + "' (" + s.width + "x" + s.height + ")");
+            return s;
+        } catch (Exception e) {
+            System.err.println("[MATCH] Map load failed, using fallback: " + e.getMessage());
+            if (e.getCause() != null) e.getCause().printStackTrace();
+            return ServerGameState.createWithBorderWalls("map01", 30, 20);
+        }
+    }
+
+    private static com.mygame.server.data.weapon.WeaponRegistry loadWeapons(String resource) {
+        try {
+            return com.mygame.server.data.weapon.WeaponLoader.load(resource);
+        } catch (Exception e) {
+            System.err.println("[MATCH] Weapon load failed (" + e.getMessage() + "), using fallback");
+            return new com.mygame.server.data.weapon.WeaponRegistry();
+        }
     }
 
     public String addPlayer(String username) {
