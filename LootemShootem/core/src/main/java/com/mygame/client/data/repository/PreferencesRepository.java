@@ -8,9 +8,11 @@ import com.mygame.client.domain.ports.PreferencesPort;
 
 public final class PreferencesRepository implements PreferencesPort {
 
-    private static final String PREFS_NAME   = "lootem";
-    private static final String KEY_USERNAME = "username";
-    private static final String KEY_HUD      = "hud_slot_";
+    private static final String PREFS_NAME         = "lootem";
+    private static final String KEY_USERNAME        = "username";
+    private static final String KEY_HUD             = "hud_slot_";
+    private static final String KEY_SOUND_ENABLED   = "sound_enabled";
+    private static final String KEY_CONTROLS_SWAPPED = "controls_swapped";
 
     /** Default widget for each slot ordinal: LEFT→KILL_FEED, CENTER→TIME_ALIVE, RIGHT→LEADERBOARD */
     private static final HudWidget[] HUD_DEFAULTS = {
@@ -20,6 +22,10 @@ public final class PreferencesRepository implements PreferencesPort {
     };
 
     private final Preferences prefs = Gdx.app.getPreferences(PREFS_NAME);
+
+    public PreferencesRepository() {
+        // prefs field is initialised inline above; constructor kept for explicit instantiation
+    }
 
     @Override
     public String getUsername() {
@@ -46,6 +52,28 @@ public final class PreferencesRepository implements PreferencesPort {
     @Override
     public void saveHudWidget(HudSlot slot, HudWidget widget) {
         prefs.putString(KEY_HUD + slot.ordinal(), widget.name());
+        prefs.flush();
+    }
+
+    @Override
+    public boolean isSoundEnabled() {
+        return prefs.getBoolean(KEY_SOUND_ENABLED, true);
+    }
+
+    @Override
+    public void setSoundEnabled(boolean enabled) {
+        prefs.putBoolean(KEY_SOUND_ENABLED, enabled);
+        prefs.flush();
+    }
+
+    @Override
+    public boolean isControlsSwapped() {
+        return prefs.getBoolean(KEY_CONTROLS_SWAPPED, false);
+    }
+
+    @Override
+    public void setControlsSwapped(boolean swapped) {
+        prefs.putBoolean(KEY_CONTROLS_SWAPPED, swapped);
         prefs.flush();
     }
 }

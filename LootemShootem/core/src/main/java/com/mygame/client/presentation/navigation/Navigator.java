@@ -31,6 +31,7 @@ public final class Navigator {
         switchTo(new SettingsScreen(this, serverUrl, username));
     }
 
+    /** Sets the new screen and disposes the previous one. */
     private void switchTo(Screen next) {
         Screen previous = game.getScreen();
         game.setScreen(next);

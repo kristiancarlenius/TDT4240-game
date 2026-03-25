@@ -22,12 +22,14 @@ public final class ServerWorldStepSystem {
     private final ProjectileSystem  projectileSystem;
     private final PickupSpawnSystem pickupSpawnSystem;
     private final ChestSystem       chestSystem;
+    private final PlayerSystem      playerSystem;
 
     public ServerWorldStepSystem(ServerGameState state,
                                  WeaponRegistry weaponRegistry,
                                  CollisionSystem collisionSystem,
                                  ProjectileSystem projectileSystem,
                                  PickupSpawnSystem pickupSpawnSystem,
+                                 PlayerSystem playerSystem,
                                  ChestSystem chestSystem) {
         this.state             = state;
         this.weaponRegistry    = weaponRegistry;
@@ -35,6 +37,7 @@ public final class ServerWorldStepSystem {
         this.projectileSystem  = projectileSystem;
         this.pickupSpawnSystem = pickupSpawnSystem;
         this.chestSystem       = chestSystem;
+        this.playerSystem      = playerSystem;
     }
 
     public void tick(float dt, Map<String, InputMessage> latestInput) {
@@ -44,12 +47,11 @@ public final class ServerWorldStepSystem {
 
         chestSystem.update(dt);
         pickupSpawnSystem.update();
+        playerSystem.update(dt);
 
         for (PlayerState p : state.players.values()) {
             if (p.isDead) {
                 if (p.justDied) { p.justDied = false; dropLoot(p); }
-                p.respawnTimer -= dt;
-                if (p.respawnTimer <= 0f) respawnPlayer(p);
                 continue;
             }
 
@@ -98,10 +100,9 @@ public final class ServerWorldStepSystem {
                 }
             }
 
-            // Trap damage
+            // Trap damage — delegated to PlayerSystem so kill credit and kill-feed work
             if (state.isTrapAtWorld(p.pos.x, p.pos.y)) {
-                p.hp = Math.max(0f, p.hp - 10f * dt);
-                if (p.hp <= 0f && !p.isDead) killPlayer(p, null);
+                playerSystem.takeDamage(p, 10f * dt, null);
             }
         }
 
@@ -136,36 +137,6 @@ public final class ServerWorldStepSystem {
         p.magsBySlot[p.currentSlot] = p.equippedMags;
         p.equippedAmmo              = weaponRegistry.get(p.equippedWeaponType).maxAmmo;
         p.ammoBySlot[p.currentSlot] = p.equippedAmmo;
-    }
-
-    // ── Respawn ──────────────────────────────────────────────────────────────
-
-    private void respawnPlayer(PlayerState p) {
-        Vec2 spawn = state.findSafeSpawn();
-        p.pos                  = spawn;
-        p.hp                   = 100f;
-        p.maxHp                = 100f;
-        p.vel                  = Vec2.zero();
-        p.timeSurvived         = 0f;
-        p.speedTier            = 0;
-        p.healthTier           = 0;
-        p.moveSpeed            = PlayerState.BASE_MOVE_SPEED;
-        p.speedBoostTimer      = 0f;
-        p.isReloading          = false;
-        p.reloadTimer          = 0f;
-        WeaponSpec cross       = weaponRegistry.get(WeaponType.CROSSBOW);
-        p.inventory[0]         = WeaponType.CROSSBOW;
-        p.ammoBySlot[0]        = cross.maxAmmo;
-        p.magsBySlot[0]        = cross.numMagazines;
-        p.inventory[1]         = null;
-        p.ammoBySlot[1]        = 0;
-        p.magsBySlot[1]        = 0;
-        p.currentSlot          = 0;
-        p.syncEquipped();
-        p.shootCooldownSeconds = 0f;
-        p.isDead               = false;
-        p.respawnTimer         = 0f;
-        System.out.println("[GAME] " + p.username + " respawned at " + spawn);
     }
 
     // ── Death drop ───────────────────────────────────────────────────────────
@@ -209,12 +180,6 @@ public final class ServerWorldStepSystem {
             state.pickups.add(new PickupState(UUID.randomUUID().toString(), PickupType.HEALTH,
                     new Vec2(p.pos.x, p.pos.y), 40, 0f, null, 0));
         }
-    }
-
-    private void killPlayer(PlayerState p, String killerId) {
-        p.isDead       = true;
-        p.justDied     = true;
-        p.respawnTimer = RESPAWN_SECONDS;
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

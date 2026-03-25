@@ -29,13 +29,14 @@ public final class MatchService {
         this.state          = new MapProvider().provide("map01");
         this.weaponRegistry = loadWeapons("weapons/weapons.json");
 
+        PlayerSystem      player     = new PlayerSystem(state);
         CollisionSystem   collision  = new CollisionSystem(state);
-        ProjectileSystem  projectile = new ProjectileSystem(state);
+        ProjectileSystem  projectile = new ProjectileSystem(state, player);
         PickupSpawnSystem pickup     = new PickupSpawnSystem(state, weaponRegistry);
         ChestSystem       chests     = new ChestSystem(state, weaponRegistry, rng);
 
         this.worldStepSystem = new ServerWorldStepSystem(
-                state, weaponRegistry, collision, projectile, pickup, chests);
+                state, weaponRegistry, collision, projectile, pickup, player, chests);
     }
 
     // ── Player management ────────────────────────────────────────────────────

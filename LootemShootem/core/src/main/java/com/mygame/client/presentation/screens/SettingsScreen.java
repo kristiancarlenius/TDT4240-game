@@ -18,9 +18,12 @@ import com.mygame.client.domain.ports.PreferencesPort;
 import com.mygame.client.presentation.navigation.Navigator;
 
 /**
- * Settings screen — lets the player reassign the three movable HUD widgets
- * (Kill Feed, Time Alive, Leaderboard) to the three anchor slots
- * (Top-Left, Top-Center, Top-Right).
+ * Settings screen — lets the player:
+ *   • Toggle sound on/off
+ *   • Toggle control layout (default / inverted)
+ *   • Reassign the three movable HUD widgets
+ *     (Kill Feed, Time Alive, Leaderboard) to the three anchor slots
+ *     (Top-Left, Top-Center, Top-Right).
  *
  * Tapping the widget name in any row cycles it to the next widget.
  * If that widget is already assigned to another slot the two slots swap,
@@ -28,10 +31,10 @@ import com.mygame.client.presentation.navigation.Navigator;
  */
 public final class SettingsScreen implements Screen {
 
-    private static final int   BTN_W  = 220;
-    private static final int   BTN_H  = 46;
-    private static final int   ROW_W  = 380;
-    private static final int   ROW_H  = 46;
+    private static final int   BTN_W   = 220;
+    private static final int   BTN_H   = 46;
+    private static final int   ROW_W   = 380;
+    private static final int   ROW_H   = 46;
     private static final float ROW_GAP = 60f;
 
     private final Navigator navigator;
@@ -65,6 +68,26 @@ public final class SettingsScreen implements Screen {
             int sw = Gdx.graphics.getWidth();
             int sh = Gdx.graphics.getHeight();
             int worldY = sh - screenY;
+
+            // Toggle sound button
+            int toggleW = 300, toggleH = 50;
+            int toggleX = (sw - toggleW) / 2;
+            int toggleY = sh / 2 + 160;
+            if (screenX >= toggleX && screenX <= toggleX + toggleW
+                    && worldY >= toggleY && worldY <= toggleY + toggleH) {
+                prefs.setSoundEnabled(!prefs.isSoundEnabled());
+                return true;
+            }
+
+            // Toggle controls button
+            int ctrlW = 300, ctrlH = 50;
+            int ctrlX = (sw - ctrlW) / 2;
+            int ctrlY = sh / 2 + 90;
+            if (screenX >= ctrlX && screenX <= ctrlX + ctrlW
+                    && worldY >= ctrlY && worldY <= ctrlY + ctrlH) {
+                prefs.setControlsSwapped(!prefs.isControlsSwapped());
+                return true;
+            }
 
             // Check each slot row's widget button
             for (HudSlot slot : HudSlot.values()) {
@@ -129,7 +152,23 @@ public final class SettingsScreen implements Screen {
         shapes.setProjectionMatrix(proj);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Row backgrounds
+        // Toggle sound button background
+        int toggleW = 300, toggleH = 50;
+        int toggleX = (sw - toggleW) / 2;
+        int toggleY = sh / 2 + 160;
+        shapes.setColor(prefs.isSoundEnabled() ? 0.2f : 0.4f,
+                        prefs.isSoundEnabled() ? 0.6f : 0.2f,
+                        0.2f, 1f);
+        shapes.rect(toggleX, toggleY, toggleW, toggleH);
+
+        // Toggle controls button background
+        int ctrlW = 300, ctrlH = 50;
+        int ctrlX = (sw - ctrlW) / 2;
+        int ctrlY = sh / 2 + 90;
+        shapes.setColor(0.3f, 0.4f, 0.5f, 1f);
+        shapes.rect(ctrlX, ctrlY, ctrlW, ctrlH);
+
+        // Row backgrounds (HUD slot assignments)
         for (HudSlot slot : HudSlot.values()) {
             int rowY = rowY(slot, sh);
             int rowX = (sw - ROW_W) / 2;
@@ -151,16 +190,27 @@ public final class SettingsScreen implements Screen {
 
         // Title
         titleFont.setColor(new Color(1f, 0.82f, 0.15f, 1f));
-        String title = "HUD LAYOUT";
+        String title = "SETTINGS";
         layout.setText(titleFont, title);
-        titleFont.draw(batch, title, (sw - layout.width) / 2f, sh * 0.82f);
+        titleFont.draw(batch, title, (sw - layout.width) / 2f, sh * 0.92f);
 
-        // Sub-header
+        // Sound toggle label
+        font.setColor(Color.WHITE);
+        String toggleLabel = "SOUND: " + (prefs.isSoundEnabled() ? "ON" : "OFF");
+        layout.setText(font, toggleLabel);
+        font.draw(batch, toggleLabel, toggleX + (toggleW - layout.width) / 2f, toggleY + toggleH - 15f);
+
+        // Controls toggle label
+        String ctrlLabel = "CONTROL LAYOUT: " + (prefs.isControlsSwapped() ? "INVERTED" : "DEFAULT");
+        layout.setText(font, ctrlLabel);
+        font.draw(batch, ctrlLabel, ctrlX + (ctrlW - layout.width) / 2f, ctrlY + ctrlH - 15f);
+
+        // HUD layout sub-header
         font.setColor(new Color(0.55f, 0.55f, 0.60f, 1f));
-        String sub = "tap a widget to cycle  •  assignments always swap";
+        String sub = "HUD LAYOUT  •  tap widget to cycle";
         layout.setText(font, sub);
         font.getData().setScale(1.1f);
-        font.draw(batch, sub, (sw - layout.width) / 2f, sh * 0.72f);
+        font.draw(batch, sub, (sw - layout.width) / 2f, sh / 2f + 72f);
         font.getData().setScale(1.5f);
 
         // Slot rows
@@ -245,7 +295,7 @@ public final class SettingsScreen implements Screen {
     // ── Positioning helpers ───────────────────────────────────────────────────
 
     private int rowY(HudSlot slot, int sh) {
-        int centerY = sh / 2 + 30;
+        int centerY = sh / 2 - 10;
         switch (slot) {
             case TOP_LEFT:   return centerY + (int) ROW_GAP;
             case TOP_CENTER: return centerY;
@@ -255,7 +305,7 @@ public final class SettingsScreen implements Screen {
     }
 
     private int backBtnY(int sh) {
-        return sh / 2 - 120;
+        return sh / 2 - 180;
     }
 
     private static String slotLabel(HudSlot slot) {

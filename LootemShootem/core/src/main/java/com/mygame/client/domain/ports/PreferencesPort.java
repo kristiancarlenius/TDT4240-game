@@ -9,4 +9,9 @@ public interface PreferencesPort {
 
     HudWidget getHudWidget(HudSlot slot);
     void      saveHudWidget(HudSlot slot, HudWidget widget);
+
+    boolean isSoundEnabled();
+    void setSoundEnabled(boolean enabled);
+    boolean isControlsSwapped();
+    void setControlsSwapped(boolean swapped);
 }

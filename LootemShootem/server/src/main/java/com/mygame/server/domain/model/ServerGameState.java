@@ -26,6 +26,7 @@ public final class ServerGameState {
     public final List<String>            killFeedQueue = Collections.synchronizedList(new ArrayList<>());
 
     private final Random spawnRng = new Random();
+    private int spawnIndex = 0;
 
     private ServerGameState(String mapId, int width, int height, TileType[] tiles) {
         this.mapId = mapId;
@@ -99,6 +100,42 @@ public final class ServerGameState {
 
         if (candidates.isEmpty()) return randomFloorTile(spawnRng);
         return candidates.get(spawnRng.nextInt(candidates.size()));
+    }
+
+    /**
+     * Cycles through a set of fixed corner/centre spawn points, skipping any
+     * that land inside a wall tile.  Used by PlayerSystem on respawn so that
+     * players never appear inside walls.
+     */
+    public Vec2 findNextSpawn() {
+        // A few fixed spawns (world coords are tile centers)
+        Vec2[] spawns = new Vec2[]{
+                new Vec2(2.5f, 2.5f),
+                new Vec2(width - 3.5f, 2.5f),
+                new Vec2(2.5f, height - 3.5f),
+                new Vec2(width - 3.5f, height - 3.5f),
+                new Vec2(width / 2f, height / 2f)
+        };
+
+        // Select next walkable tile: ensure that player doesn't spawn inside wall
+        for (int i = 0; i < spawns.length; i++) {
+            int index = (spawnIndex + i) % spawns.length;
+            Vec2 s = spawns[index];
+            if (isWalkableWorld(s.x, s.y)) {
+                spawnIndex = (index + 1) % spawns.length;
+                return s;
+            }
+        }
+
+        // Fallback: search for the first available floor tile
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (tiles[idx(x, y, width)] == TileType.FLOOR) {
+                    return new Vec2(x + 0.5f, y + 0.5f);
+                }
+            }
+        }
+        return new Vec2(width / 2f, height / 2f);
     }
 
     private static float dist2(Vec2 a, Vec2 b) {
