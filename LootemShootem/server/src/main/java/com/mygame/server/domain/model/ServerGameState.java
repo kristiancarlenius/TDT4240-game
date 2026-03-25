@@ -70,16 +70,33 @@ public final class ServerGameState {
 
     public Vec2 findNextSpawn() {
         // A few fixed spawns (world coords are tile centers)
-        Vec2[] spawns = new Vec2[] {
+        Vec2[] spawns = new Vec2[]{
                 new Vec2(2.5f, 2.5f),
                 new Vec2(width - 3.5f, 2.5f),
                 new Vec2(2.5f, height - 3.5f),
                 new Vec2(width - 3.5f, height - 3.5f),
                 new Vec2(width / 2f, height / 2f)
         };
-        Vec2 s = spawns[spawnIndex % spawns.length];
-        spawnIndex++;
-        return s;
+
+        // Select next walkable tile: ensure that player doesn't spawn inside wall
+        for (int i = 0; i < spawns.length; i++) {
+            int index = (spawnIndex + i) % spawns.length;
+            Vec2 s = spawns[index];
+            if (isWalkableWorld(s.x, s.y)) {
+                spawnIndex = (index + 1) % spawns.length;
+                return s;
+            }
+        }
+
+        // Fallback: search for the first available floor tile
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (tiles[idx(x, y, width)] == TileType.FLOOR) {
+                    return new Vec2(x + 0.5f, y + 0.5f);
+                }
+            }
+        }
+        return new Vec2(width / 2f, height / 2f);
     }
 
     /** Returns the centre of a random floor tile (excluding border). */

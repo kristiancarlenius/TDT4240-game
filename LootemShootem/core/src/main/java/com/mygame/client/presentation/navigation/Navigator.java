@@ -4,6 +4,7 @@ import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Screen;
 import com.mygame.client.presentation.screens.GameScreen;
 import com.mygame.client.presentation.screens.MainMenuScreen;
+import com.mygame.client.presentation.screens.SettingsScreen;
 
 /**
  * Central navigation controller. All screen transitions go through here so
@@ -23,6 +24,10 @@ public final class Navigator {
 
     public void showGame(String serverUrl, String username) {
         switchTo(new GameScreen(this, serverUrl, username));
+    }
+
+    public void showSettings(String serverUrl, String username) {
+        switchTo(new SettingsScreen(this, serverUrl, username));
     }
 
     /** Sets the new screen and disposes the previous one. */

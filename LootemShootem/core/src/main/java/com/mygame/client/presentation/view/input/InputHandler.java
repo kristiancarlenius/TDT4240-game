@@ -6,6 +6,8 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.math.Vector3;
+import com.mygame.client.data.repository.PreferencesRepository;
+import com.mygame.client.domain.ports.PreferencesPort;
 import com.mygame.shared.util.Vec2;
 
 public final class InputHandler {
@@ -19,16 +21,24 @@ public final class InputHandler {
 
     private final OrthographicCamera camera;
     private boolean touchSwitchPending = false;
+    private final PreferencesPort prefs;
 
     public InputHandler(OrthographicCamera camera) {
         this.camera = camera;
+        this.prefs = new PreferencesRepository();
 
         if (Gdx.app.getType() == Application.ApplicationType.Android) {
             int sw = Gdx.graphics.getWidth();
             int sh = Gdx.graphics.getHeight();
-            moveStick  = new VirtualJoystickView(sw * 0.18f, sh * 0.22f);
-            aimStick   = new VirtualJoystickView(sw * 0.82f, sh * 0.22f);
-            switchBtnX = sw * 0.82f;
+            boolean swapped = prefs.isControlsSwapped();
+
+            float moveX = swapped ? sw * 0.82f : sw * 0.18f;
+            float aimX  = swapped ? sw * 0.18f : sw * 0.82f;
+
+            moveStick  = new VirtualJoystickView(moveX, sh * 0.22f);
+            aimStick   = new VirtualJoystickView(aimX, sh * 0.22f);
+
+            switchBtnX = aimX;
             switchBtnY = sh * 0.42f;
             switchBtnR = 40f;
             registerTouchProcessor();

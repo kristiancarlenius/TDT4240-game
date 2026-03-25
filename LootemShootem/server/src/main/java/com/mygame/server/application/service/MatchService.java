@@ -7,6 +7,7 @@ import com.mygame.server.domain.model.PlayerState;
 import com.mygame.server.domain.model.ServerGameState;
 import com.mygame.server.domain.system.CollisionSystem;
 import com.mygame.server.domain.system.PickupSpawnSystem;
+import com.mygame.server.domain.system.PlayerSystem;
 import com.mygame.server.domain.system.ProjectileSystem;
 import com.mygame.server.domain.system.ServerWorldStepSystem;
 import com.mygame.shared.dto.*;
@@ -31,12 +32,13 @@ public final class MatchService {
         this.state          = new MapProvider().provide("map01");
         this.weaponRegistry = loadWeapons("weapons/weapons.json");
 
+        PlayerSystem      player     = new PlayerSystem(state);
         CollisionSystem   collision  = new CollisionSystem(state);
-        ProjectileSystem  projectile = new ProjectileSystem(state);
+        ProjectileSystem  projectile = new ProjectileSystem(state, player);
         PickupSpawnSystem pickup     = new PickupSpawnSystem(state, weaponRegistry, rng);
 
         this.worldStepSystem = new ServerWorldStepSystem(
-                state, weaponRegistry, collision, projectile, pickup);
+                state, weaponRegistry, collision, projectile, pickup, player);
     }
 
     // ---- Player management ----

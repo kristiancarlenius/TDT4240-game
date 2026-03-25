@@ -7,16 +7,16 @@ import com.mygame.shared.util.Vec2;
 
 /**
  * Moves all projectiles, removes expired / wall-blocked ones,
- * and applies damage + kill-credit on player hit.
+ * and notifies PlayerSystem on player hit.
  */
 public final class ProjectileSystem {
 
-    private static final float RESPAWN_SECONDS = 5f;
-
     private final ServerGameState state;
+    private final PlayerSystem playerSystem;
 
-    public ProjectileSystem(ServerGameState state) {
+    public ProjectileSystem(ServerGameState state, PlayerSystem playerSystem) {
         this.state = state;
+        this.playerSystem = playerSystem;
     }
 
     public void update(float dt) {
@@ -38,20 +38,8 @@ public final class ProjectileSystem {
 
             PlayerState hit = findHit(pr);
             if (hit != null) {
-                hit.hp = Math.max(0f, hit.hp - pr.damage);
+                playerSystem.takeDamage(hit, pr.damage, pr.ownerPlayerId);
                 state.projectiles.remove(i);
-                if (hit.hp <= 0f && !hit.isDead) {
-                    hit.isDead       = true;
-                    hit.justDied     = true;
-                    hit.respawnTimer = RESPAWN_SECONDS;
-                    PlayerState killer = state.players.get(pr.ownerPlayerId);
-                    if (killer != null) {
-                        killer.score++;
-                        String msg = killer.username + " killed " + hit.username;
-                        state.killFeedQueue.add(msg);
-                        System.out.println("[GAME] " + msg);
-                    }
-                }
             }
         }
     }
@@ -59,7 +47,7 @@ public final class ProjectileSystem {
     private PlayerState findHit(ProjectileState pr) {
         for (PlayerState p : state.players.values()) {
             if (p.playerId.equals(pr.ownerPlayerId)) continue;
-            if (p.hp <= 0f) continue;
+            if (p.isDead) continue;
             float dx = p.pos.x - pr.pos.x;
             float dy = p.pos.y - pr.pos.y;
             float r  = p.radius + pr.radius;

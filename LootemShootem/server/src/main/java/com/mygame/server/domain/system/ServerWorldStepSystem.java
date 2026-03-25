@@ -15,7 +15,6 @@ import java.util.UUID;
 
 public final class ServerWorldStepSystem {
 
-    private static final float RESPAWN_SECONDS  = 5f;
     private static final float HP_REGEN_PER_SEC = 2f;
 
     private final ServerGameState   state;
@@ -23,23 +22,27 @@ public final class ServerWorldStepSystem {
     private final CollisionSystem   collisionSystem;
     private final ProjectileSystem  projectileSystem;
     private final PickupSpawnSystem pickupSpawnSystem;
+    private final PlayerSystem      playerSystem;
 
     public ServerWorldStepSystem(ServerGameState state,
                                  WeaponRegistry weaponRegistry,
                                  CollisionSystem collisionSystem,
                                  ProjectileSystem projectileSystem,
-                                 PickupSpawnSystem pickupSpawnSystem) {
+                                 PickupSpawnSystem pickupSpawnSystem,
+                                 PlayerSystem playerSystem) {
         this.state             = state;
         this.weaponRegistry    = weaponRegistry;
         this.collisionSystem   = collisionSystem;
         this.projectileSystem  = projectileSystem;
         this.pickupSpawnSystem = pickupSpawnSystem;
+        this.playerSystem      = playerSystem;
     }
 
     public void tick(float dt, Map<String, InputMessage> latestInput) {
         state.tick++;
 
         pickupSpawnSystem.update(dt);
+        playerSystem.update(dt);
 
         for (PlayerState p : state.players.values()) {
             if (p.isDead) {
@@ -48,8 +51,6 @@ public final class ServerWorldStepSystem {
                     p.justDied = false;
                     dropLoot(p);
                 }
-                p.respawnTimer -= dt;
-                if (p.respawnTimer <= 0f) respawnPlayer(p);
                 continue;
             }
 
@@ -91,40 +92,11 @@ public final class ServerWorldStepSystem {
 
             // Trap damage
             if (state.isTrapAtWorld(p.pos.x, p.pos.y)) {
-                p.hp = Math.max(0f, p.hp - 10f * dt);
-                if (p.hp <= 0f && !p.isDead) {
-                    p.isDead       = true;
-                    p.justDied     = true;
-                    p.respawnTimer = RESPAWN_SECONDS;
-                    String msg = p.username + " died in a trap";
-                    state.killFeedQueue.add(msg);
-                    System.out.println("[GAME] " + msg);
-                }
+                playerSystem.takeDamage(p, 10f * dt, null);
             }
         }
 
         projectileSystem.update(dt);
-    }
-
-    private void respawnPlayer(PlayerState p) {
-        Vec2 spawn = state.findNextSpawn();
-        p.pos                  = spawn;
-        p.hp                   = 100f;
-        p.vel                  = Vec2.zero();
-        p.timeSurvived         = 0f;
-        // Reset to starter crossbow, clear secondary slot
-        p.inventory[0]         = WeaponType.CROSSBOW;
-        p.ammoBySlot[0]        = weaponRegistry.get(WeaponType.CROSSBOW).maxAmmo;
-        p.inventory[1]         = null;
-        p.ammoBySlot[1]        = 0;
-        p.currentSlot          = 0;
-        p.syncEquipped();
-        p.shootCooldownSeconds = 0f;
-        p.isDead               = false;
-        p.respawnTimer         = 0f;
-        p.moveSpeed            = PlayerState.BASE_MOVE_SPEED;
-        p.speedBoostTimer      = 0f;
-        System.out.println("[GAME] " + p.username + " respawned at " + spawn);
     }
 
     private void dropLoot(PlayerState p) {

@@ -107,6 +107,15 @@ public final class MainMenuScreen implements Screen {
                 tryConnect();
                 return true;
             }
+            // Settings button
+            int setW = 200, setH = 40;
+            int setX = (sw - setW) / 2;
+            int setY = 40;
+            if (screenX >= setX && screenX <= setX + setW
+                    && worldY >= setY && worldY <= setY + setH) {
+                navigator.showSettings(serverUrl, username);
+                return true;
+            }
             return false;
         }
     };
@@ -172,6 +181,13 @@ public final class MainMenuScreen implements Screen {
         shapes.setColor(0.15f, 0.50f, 0.80f, 1f);
         shapes.rect(btnX, btnY, BTN_W, BTN_H);
 
+        // Settings button background
+        int setW = 200, setH = 40;
+        int setX = (sw - setW) / 2;
+        int setY = 40;
+        shapes.setColor(0.3f, 0.3f, 0.35f, 1f);
+        shapes.rect(setX, setY, setW, setH);
+
         shapes.end();
 
         // --- Text ---
@@ -203,6 +219,12 @@ public final class MainMenuScreen implements Screen {
         String btnLabel = "CONNECT";
         layout.setText(font, btnLabel);
         font.draw(batch, btnLabel, btnX + (BTN_W - layout.width) / 2f, btnY + BTN_H - 10f);
+
+        // Settings label
+        font.setColor(Color.WHITE);
+        String setLabel = "SETTINGS";
+        layout.setText(font, setLabel);
+        font.draw(batch, setLabel, setX + (setW - layout.width) / 2f, setY + setH - 10f);
 
         // Hint
         font.setColor(0.45f, 0.45f, 0.50f, 1f);
