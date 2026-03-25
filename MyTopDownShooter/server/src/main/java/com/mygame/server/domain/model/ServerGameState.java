@@ -8,6 +8,7 @@ import com.mygame.shared.util.Vec2;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Random;
 
 public final class ServerGameState {
 
@@ -73,6 +74,20 @@ public final class ServerGameState {
         Vec2 s = spawns[spawnIndex % spawns.length];
         spawnIndex++;
         return s;
+    }
+
+    /** Returns the centre of a random floor tile (excluding border). */
+    public Vec2 randomFloorTile(Random rng) {
+        List<Vec2> floors = new ArrayList<>();
+        for (int y = 1; y < height - 1; y++) {
+            for (int x = 1; x < width - 1; x++) {
+                if (tiles[idx(x, y, width)] == TileType.FLOOR) {
+                    floors.add(new Vec2(x + 0.5f, y + 0.5f));
+                }
+            }
+        }
+        if (floors.isEmpty()) return new Vec2(width / 2f, height / 2f);
+        return floors.get(rng.nextInt(floors.size()));
     }
 
     /** Very simple collision: treat player as a point and forbid entering non-walkable tiles. */

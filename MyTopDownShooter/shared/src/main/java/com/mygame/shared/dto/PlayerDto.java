@@ -16,6 +16,11 @@ public final class PlayerDto {
     public WeaponType equippedWeaponType;
     public int equippedAmmo;
 
+    public int score;
+    public boolean isDead;
+    public float respawnTimer;
+    public float speedBoostTimer;
+
     public PlayerDto() {}
 
     public PlayerDto(String playerId, String username, Vec2 pos, Vec2 vel, Vec2 facing,

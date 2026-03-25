@@ -12,8 +12,10 @@ public final class PlayerState {
     public Vec2 vel = Vec2.zero();
     public Vec2 facing = new Vec2(1f, 0f);
 
+    public static final float BASE_MOVE_SPEED = 4.5f;
+
     public float hp = 100f;
-    public float moveSpeed = 4.5f; // tiles/sec-ish if you treat 1 unit = 1 tile
+    public float moveSpeed = BASE_MOVE_SPEED;
 
     public float radius = 0.30f;           // player hit radius in world units (tile units)
     public float shootCooldownSeconds = 0f; // fire-rate limiter
@@ -22,6 +24,11 @@ public final class PlayerState {
     public int equippedAmmo = 25; // will be set from registry on join
     public int lastSwitchSeq = 0; // edge-detect switchWeapon
 
+    public int score = 0;
+    public boolean isDead = false;
+    public float respawnTimer = 0f;
+    public float speedBoostTimer = 0f;
+
     public PlayerState(String playerId, String username, Vec2 spawnPos) {
         this.playerId = playerId;
         this.username = username;
@@ -29,7 +36,7 @@ public final class PlayerState {
     }
 
     public PlayerDto toDto() {
-        return new PlayerDto(
+        PlayerDto dto = new PlayerDto(
                 playerId,
                 username,
                 pos,
@@ -40,5 +47,10 @@ public final class PlayerState {
                 equippedWeaponType,
                 equippedAmmo
         );
+        dto.score = score;
+        dto.isDead = isDead;
+        dto.respawnTimer = respawnTimer;
+        dto.speedBoostTimer = speedBoostTimer;
+        return dto;
     }
 }

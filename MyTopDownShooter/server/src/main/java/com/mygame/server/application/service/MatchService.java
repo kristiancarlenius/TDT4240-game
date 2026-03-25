@@ -12,8 +12,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class MatchService {
 
+    private static final float RESPAWN_SECONDS = 5f;
+    private static final int   MAX_PICKUPS = 8;
+    private static final float PICKUP_SPAWN_INTERVAL = 10f;
+    private static final float COLLECT_RADIUS = 0.55f;
+
     private final ServerGameState state;
     private final com.mygame.server.data.weapon.WeaponRegistry weaponRegistry = new com.mygame.server.data.weapon.WeaponRegistry();
+    private final java.util.Random rng = new java.util.Random();
+
+    private float pickupSpawnTimer = 3f; // first chest after 3 s
 
     // Latest input per player (MVP: last-write-wins)
     private final Map<String, InputMessage> latestInput = new ConcurrentHashMap<>();
@@ -47,7 +55,33 @@ public final class MatchService {
     public void tick(float dt) {
         state.tick++;
 
+        // Pickup spawning
+        pickupSpawnTimer -= dt;
+        if (pickupSpawnTimer <= 0f) {
+            pickupSpawnTimer = PICKUP_SPAWN_INTERVAL;
+            if (state.pickups.size() < MAX_PICKUPS) {
+                spawnPickup();
+            }
+        }
+
         for (PlayerState p : state.players.values()) {
+            // Tick down respawn timer for dead players
+            if (p.isDead) {
+                p.respawnTimer -= dt;
+                if (p.respawnTimer <= 0f) {
+                    respawnPlayer(p);
+                }
+                continue;
+            }
+
+            // Speed boost countdown
+            if (p.speedBoostTimer > 0f) {
+                p.speedBoostTimer = Math.max(0f, p.speedBoostTimer - dt);
+                if (p.speedBoostTimer == 0f) {
+                    p.moveSpeed = PlayerState.BASE_MOVE_SPEED;
+                }
+            }
+
             InputMessage in = latestInput.get(p.playerId);
 
             // default no input
@@ -111,13 +145,19 @@ public final class MatchService {
                 }
             }
 
-            // TRAP damage (MVP): if standing on trap tile
+            // TRAP damage: if standing on trap tile
             if (state.isTrapAtWorld(p.pos.x, p.pos.y)) {
                 p.hp = Math.max(0f, p.hp - 10f * dt);
+                if (p.hp <= 0f) {
+                    p.isDead = true;
+                    p.respawnTimer = RESPAWN_SECONDS;
+                }
             }
+
+            // Pickup collection
+            collectPickups(p);
         }
         simulateProjectiles(dt);
-        state.pickups.clear();
     }
 
     public JoinAccepted buildJoinAccepted(String playerId) {
@@ -132,7 +172,23 @@ public final class MatchService {
             players.add(p.toDto());
         }
         var projs = state.projectiles.stream().map(com.mygame.server.domain.model.ProjectileState::toDto).toArray(ProjectileDto[]::new);
-        return new GameSnapshotDto(state.tick, players.toArray(new PlayerDto[0]), projs, new PickupDto[0]);
+        PickupDto[] pickups = state.pickups.toArray(new PickupDto[0]);
+        return new GameSnapshotDto(state.tick, players.toArray(new PlayerDto[0]), projs, pickups);
+    }
+
+    private void respawnPlayer(PlayerState p) {
+        Vec2 spawn = state.findNextSpawn();
+        p.pos = spawn;
+        p.hp = 100f;
+        p.vel = Vec2.zero();
+        p.equippedWeaponType = WeaponType.CROSSBOW;
+        p.equippedAmmo = weaponRegistry.get(WeaponType.CROSSBOW).maxAmmo;
+        p.shootCooldownSeconds = 0f;
+        p.isDead = false;
+        p.respawnTimer = 0f;
+        p.moveSpeed = PlayerState.BASE_MOVE_SPEED;
+        p.speedBoostTimer = 0f;
+        System.out.println("[MATCH] " + p.username + " respawned at " + spawn);
     }
 
     private static float clamp(float v, float lo, float hi) {
@@ -207,7 +263,81 @@ public final class MatchService {
             if (hit != null) {
                 hit.hp = Math.max(0f, hit.hp - pr.damage);
                 state.projectiles.remove(i);
+                if (hit.hp <= 0f && !hit.isDead) {
+                    hit.isDead = true;
+                    hit.respawnTimer = RESPAWN_SECONDS;
+                    PlayerState killer = state.players.get(pr.ownerPlayerId);
+                    if (killer != null) killer.score++;
+                    System.out.println("[MATCH] " + hit.username + " was killed by " +
+                            (killer != null ? killer.username : "unknown"));
+                }
             }
+        }
+    }
+
+    // ---- Pickup logic ----
+
+    private void spawnPickup() {
+        Vec2 pos = state.randomFloorTile(rng);
+        String id = UUID.randomUUID().toString();
+        PickupType type = randomPickupType();
+        PickupDto dto;
+        switch (type) {
+            case HEALTH:
+                dto = new PickupDto(id, PickupType.HEALTH, pos, 40, 0f, null, 0);
+                break;
+            case SPEED:
+                dto = new PickupDto(id, PickupType.SPEED, pos, 0, 5f, null, 0);
+                break;
+            case WEAPON:
+            default:
+                WeaponType wt = weaponRegistry.getSwitchOrder()
+                        .get(rng.nextInt(weaponRegistry.getSwitchOrder().size()));
+                dto = new PickupDto(id, PickupType.WEAPON, pos, 0, 0f, wt,
+                        weaponRegistry.get(wt).maxAmmo);
+                break;
+        }
+        state.pickups.add(dto);
+        System.out.println("[MATCH] Spawned " + type + " pickup at " + pos);
+    }
+
+    private PickupType randomPickupType() {
+        int r = rng.nextInt(10);
+        if (r < 4) return PickupType.HEALTH;
+        if (r < 7) return PickupType.SPEED;
+        return PickupType.WEAPON;
+    }
+
+    private void collectPickups(PlayerState p) {
+        state.pickups.removeIf(pickup -> {
+            if (pickup.pos == null) return true;
+            float dx = p.pos.x - pickup.pos.x;
+            float dy = p.pos.y - pickup.pos.y;
+            if (dx * dx + dy * dy > COLLECT_RADIUS * COLLECT_RADIUS) return false;
+            applyPickup(p, pickup);
+            System.out.println("[MATCH] " + p.username + " collected " + pickup.type);
+            return true;
+        });
+    }
+
+    private void applyPickup(PlayerState p, PickupDto pickup) {
+        switch (pickup.type) {
+            case HEALTH:
+                p.hp = Math.min(100f, p.hp + pickup.healthAmount);
+                break;
+            case SPEED:
+                p.speedBoostTimer = pickup.speedBoostSeconds;
+                p.moveSpeed = PlayerState.BASE_MOVE_SPEED * 1.6f;
+                break;
+            case WEAPON:
+                if (pickup.weaponType != null) {
+                    p.equippedWeaponType = pickup.weaponType;
+                    p.equippedAmmo = pickup.ammoAmount > 0
+                            ? pickup.ammoAmount
+                            : weaponRegistry.get(pickup.weaponType).maxAmmo;
+                    p.shootCooldownSeconds = 0f;
+                }
+                break;
         }
     }
 
