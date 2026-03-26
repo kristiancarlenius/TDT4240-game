@@ -59,10 +59,16 @@ public final class ServerWorldStepSystem {
             p.hp = Math.min(p.maxHp, p.hp + HP_REGEN_PER_SEC * dt);
 
             InputMessage in   = latestInput.get(p.playerId);
-            Vec2         move = (in != null && in.move != null) ? in.move : Vec2.zero();
             Vec2         aim  = (in != null && in.aim  != null) ? in.aim  : Vec2.zero();
 
-            collisionSystem.applyMovement(p, move, aim, dt);
+            // Freeze movement briefly after opening a chest
+            if (p.chestFreezeTimer > 0f) {
+                p.chestFreezeTimer -= dt;
+                collisionSystem.applyMovement(p, Vec2.zero(), aim, dt);
+            } else {
+                Vec2 move = (in != null && in.move != null) ? in.move : Vec2.zero();
+                collisionSystem.applyMovement(p, move, aim, dt);
+            }
 
             tickReload(p, in, dt);
 

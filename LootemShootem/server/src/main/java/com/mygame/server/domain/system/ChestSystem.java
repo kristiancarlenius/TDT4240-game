@@ -79,8 +79,9 @@ public final class ChestSystem {
     }
 
     private void openChest(ChestState chest, PlayerState player) {
-        chest.isOpen      = true;
-        chest.reopenTimer = ChestState.REOPEN_TIME;
+        chest.isOpen         = true;
+        chest.reopenTimer    = ChestState.REOPEN_TIME;
+        player.chestFreezeTimer = 0.2f;
         applyLoot(chest, player);
         System.out.println("[CHEST] " + player.username + " opened chest -> " + chest.lootType
                 + (chest.lootWeapon != null ? " (" + chest.lootWeapon + ")" : ""));

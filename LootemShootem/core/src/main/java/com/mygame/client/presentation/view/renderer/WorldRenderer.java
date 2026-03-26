@@ -157,12 +157,7 @@ public final class WorldRenderer {
             } else {
                 shapes.setColor(0.75f, 0.55f, 0.15f, 1f); // golden closed
             }
-            shapes.rect(c.pos.x - 0.35f, c.pos.y - 0.35f, 0.70f, 0.70f);
-            if (!c.isOpen) {
-                // small bright lid hint
-                shapes.setColor(0.95f, 0.80f, 0.30f, 1f);
-                shapes.rect(c.pos.x - 0.35f, c.pos.y + 0.10f, 0.70f, 0.10f);
-            }
+            shapes.rect(c.pos.x - 0.5f, c.pos.y - 0.5f, 1f, 1f);
         }
     }
 
@@ -172,7 +167,7 @@ public final class WorldRenderer {
             if (c == null || c.pos == null) continue;
             Texture tx = resolveChestTexture(c);
             if (tx == null) continue;
-            batch.draw(tx, c.pos.x - 0.40f, c.pos.y - 0.40f, 0.80f, 0.80f);
+            batch.draw(tx, c.pos.x - 0.5f, c.pos.y - 0.5f, 1f, 1f);
         }
     }
 
@@ -236,7 +231,7 @@ public final class WorldRenderer {
             if (tx != null) continue; // drawn in sprite pass
             shapes.setColor(isMe ? new Color(0.20f, 0.85f, 0.20f, 1f)
                                  : new Color(0.85f, 0.20f, 0.20f, 1f));
-            shapes.circle(p.pos.x, p.pos.y, 0.30f, 16);
+            shapes.circle(p.pos.x, p.pos.y, 0.50f, 16);
             if (p.facing != null) {
                 shapes.setColor(0.95f, 0.95f, 0.95f, 1f);
                 shapes.rectLine(p.pos.x, p.pos.y,
@@ -252,11 +247,10 @@ public final class WorldRenderer {
             if (p.pos == null || p.isDead) continue;
             boolean isMe = localId != null && localId.equals(p.playerId);
 
-            // Player body
+            // Player body — drawn at full tile size (1×1)
             Texture bodyTex = isMe ? playerLocalTex : playerEnemyTex;
             if (bodyTex != null) {
-                float r = 0.30f;
-                batch.draw(bodyTex, p.pos.x - r, p.pos.y - r, r * 2, r * 2);
+                batch.draw(bodyTex, p.pos.x - 0.5f, p.pos.y - 0.5f, 1f, 1f);
             }
 
             // Equipped weapon drawn on top, rotated toward aim direction
@@ -282,8 +276,8 @@ public final class WorldRenderer {
         // lands on the correct side.
         float drawAngle = flip ? (180f - angle) : angle;
 
-        float weapW = 1.176f;
-        float weapH = 0.378f;
+        float weapW = 1.2936f;
+        float weapH = 0.4158f;
         // Pivot at the grip end; swap to the other edge when flipped so the grip
         // stays at the player's centre regardless of direction.
         float origX = flip ? weapW : 0f;

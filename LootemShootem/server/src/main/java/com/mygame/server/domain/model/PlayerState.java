@@ -58,6 +58,9 @@ public final class PlayerState {
     /** Legacy — kept so existing HUD code compiles; timed boosts removed. */
     public float speedBoostTimer = 0f;
 
+    /** Movement freeze after opening a chest (seconds). */
+    public float chestFreezeTimer = 0f;
+
     public String lastPickupNotice;
 
     public PlayerState(String playerId, String username, Vec2 spawnPos) {
