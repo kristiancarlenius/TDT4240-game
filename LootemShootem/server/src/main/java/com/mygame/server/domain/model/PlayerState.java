@@ -13,7 +13,7 @@ public final class PlayerState {
     public Vec2 facing = new Vec2(1f, 0f);
 
     public static final float BASE_MOVE_SPEED  = 4.5f;
-    public static final int   MAX_SPEED_TIER   = 5;
+    public static final int   MAX_SPEED_TIER   = 10;
     public static final int   MAX_HEALTH_TIER  = 10;
 
     public int   speedTier  = 0;
@@ -21,7 +21,7 @@ public final class PlayerState {
     public float maxHp      = 100f;
 
     public static float speedForTier(int tier) {
-        return BASE_MOVE_SPEED * (1f + tier * 0.15f);
+        return BASE_MOVE_SPEED * (1f + tier * 0.25f);
     }
 
     public float hp        = 100f;

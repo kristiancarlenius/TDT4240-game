@@ -139,7 +139,7 @@ public final class ChestSystem {
             p.moveSpeed        = PlayerState.speedForTier(p.speedTier);
             p.speedBoostTimer  = 0f; // clear any old temp boost
             p.lastPickupNotice = "Speed Tier " + p.speedTier + "!  (x"
-                    + String.format("%.2f", 1f + p.speedTier * 0.15f) + " speed)";
+                    + String.format("%.2f", 1f + p.speedTier * 0.25f) + " speed)";
         } else {
             p.hp = Math.min(p.maxHp, p.hp + 20f);
             p.lastPickupNotice = "Max Speed! +20 HP";

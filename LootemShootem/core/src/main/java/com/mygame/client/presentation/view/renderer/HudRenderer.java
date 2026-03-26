@@ -136,7 +136,7 @@ public final class HudRenderer {
             shapes.setColor(0.12f, 0.16f, 0.26f, 1f); // dark background
             shapes.rect(BAR_X, sBarY, BAR_W, 7);
             shapes.setColor(0.20f, 0.72f, 0.95f, 1f); // blue fill
-            shapes.rect(BAR_X, sBarY, BAR_W * (me.speedTier / 5f), 7);
+            shapes.rect(BAR_X, sBarY, BAR_W * (me.speedTier / 10f), 7);
         }
 
         shapes.end();

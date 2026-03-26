@@ -282,8 +282,8 @@ public final class WorldRenderer {
         // lands on the correct side.
         float drawAngle = flip ? (180f - angle) : angle;
 
-        float weapW = 1.68f;  // 3× original
-        float weapH = 0.54f;  // 3× original
+        float weapW = 1.176f;
+        float weapH = 0.378f;
         // Pivot at the grip end; swap to the other edge when flipped so the grip
         // stays at the player's centre regardless of direction.
         float origX = flip ? weapW : 0f;

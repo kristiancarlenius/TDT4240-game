@@ -4,11 +4,7 @@ import com.mygame.server.data.weapon.WeaponRegistry;
 import com.mygame.server.domain.model.PickupState;
 import com.mygame.server.domain.model.PlayerState;
 import com.mygame.server.domain.model.ServerGameState;
-import com.mygame.shared.dto.PickupType;
 import com.mygame.shared.dto.WeaponType;
-import com.mygame.shared.util.Vec2;
-
-import java.util.UUID;
 
 /**
  * Handles collection of ground pickups (death drops only — no random spawning).
@@ -16,8 +12,7 @@ import java.util.UUID;
  * Weapon pickup rules:
  *  - Cannot pick up the same weapon type you already carry.
  *  - If your secondary slot is empty the weapon fills it silently.
- *  - Otherwise the picked-up weapon replaces the EQUIPPED weapon;
- *    the old weapon drops back to the ground with all its ammo + mags.
+ *  - Otherwise the picked-up weapon replaces the EQUIPPED weapon (old weapon lost).
  *
  * Ammo pickup:
  *  - Gives spare magazines for the weapon you are currently holding.
@@ -98,7 +93,7 @@ public final class PickupSpawnSystem {
      * Weapon pickup logic:
      *  1. Already have that type → ignore (can't carry same weapon twice).
      *  2. Secondary slot empty → fill it silently.
-     *  3. Both full → replace equipped, drop old weapon to ground.
+     *  3. Both full → replace equipped (old weapon lost, not dropped).
      */
     private void applyWeapon(PlayerState p, PickupState pickup) {
         WeaponType incoming = pickup.weaponType;
@@ -124,11 +119,7 @@ public final class PickupSpawnSystem {
             return;
         }
 
-        // Rule 3: replace equipped, drop old equipped weapon
-        WeaponType dropped    = p.inventory[p.currentSlot];
-        int        droppedAmmo = p.ammoBySlot[p.currentSlot];
-        int        droppedMags = p.magsBySlot[p.currentSlot];
-
+        // Rule 3: replace equipped (old weapon lost)
         p.inventory[p.currentSlot]  = incoming;
         p.ammoBySlot[p.currentSlot] = pickup.ammoAmount > 0
                 ? pickup.ammoAmount : weaponRegistry.get(incoming).maxAmmo;
