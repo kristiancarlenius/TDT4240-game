@@ -66,7 +66,7 @@ public final class GameScreen implements Screen {
 
         inputHandler  = new InputHandler(camera);
         controller    = new GameController(worldState, inputHandler, sendInput);
-        worldRenderer = new WorldRenderer(worldState, camera, shapes);
+        worldRenderer = new WorldRenderer(worldState, camera, shapes, batch);
         hudRenderer   = new HudRenderer(worldState, inputHandler, shapes, batch, font, bigFont);
 
         session.connect(serverUrl, username);
@@ -104,10 +104,11 @@ public final class GameScreen implements Screen {
 
     @Override
     public void dispose() {
-        if (session != null) session.disconnect();
-        if (shapes  != null) shapes.dispose();
-        if (batch   != null) batch.dispose();
-        if (font    != null) font.dispose();
-        if (bigFont != null) bigFont.dispose();
+        if (session       != null) session.disconnect();
+        if (worldRenderer != null) worldRenderer.dispose();
+        if (shapes        != null) shapes.dispose();
+        if (batch         != null) batch.dispose();
+        if (font          != null) font.dispose();
+        if (bigFont       != null) bigFont.dispose();
     }
 }

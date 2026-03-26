@@ -5,4 +5,6 @@ public interface PreferencesPort {
     void setSoundEnabled(boolean enabled);
     boolean isControlsSwapped();
     void setControlsSwapped(boolean swapped);
+    String getUsername();
+    void saveUsername(String username);
 }

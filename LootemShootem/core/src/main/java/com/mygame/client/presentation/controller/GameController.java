@@ -36,7 +36,8 @@ public final class GameController {
                 Vec2    aim       = inputHandler.getAim(playerPos);
                 boolean shoot     = inputHandler.isShoot();
                 boolean sw        = inputHandler.consumeSwitchWeapon();
-                sendInput.execute(move, aim, shoot, sw);
+                boolean reload    = inputHandler.consumeReload();
+                sendInput.execute(move, aim, shoot, sw, reload);
             }
         }
     }

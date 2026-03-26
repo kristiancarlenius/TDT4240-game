@@ -37,14 +37,17 @@ public final class WeaponLoader {
                 WeaponType type = WeaponType.valueOf(w.get("type").asText());
                 specs.add(new WeaponSpec(
                         type,
+                        w.get("tier").asInt(1),
                         (float) w.get("damage").asDouble(),
                         (float) w.get("projectileSpeed").asDouble(),
                         (float) w.get("projectileRadius").asDouble(),
                         (float) w.get("ttlSeconds").asDouble(),
                         (float) w.get("fireRate").asDouble(),
                         w.get("maxAmmo").asInt(),
+                        w.get("numMagazines").asInt(2),
                         w.get("pellets").asInt(),
-                        (float) w.get("spreadRadians").asDouble()
+                        (float) w.get("spreadRadians").asDouble(),
+                        (float) w.get("reloadSeconds").asDouble(2.0)
                 ));
             }
             return new WeaponRegistry(specs);
