@@ -24,7 +24,7 @@ import java.util.UUID;
  */
 public final class PickupSpawnSystem {
 
-    private static final float COLLECT_RADIUS    = 0.55f;
+    private static final float COLLECT_RADIUS    = 0.32f;
     private static final float COLLECT_RADIUS_SQ = COLLECT_RADIUS * COLLECT_RADIUS;
 
     private final ServerGameState state;

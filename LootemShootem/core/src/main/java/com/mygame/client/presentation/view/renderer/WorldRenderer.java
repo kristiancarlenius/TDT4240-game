@@ -167,7 +167,7 @@ public final class WorldRenderer {
             } else {
                 shapes.setColor(0.75f, 0.55f, 0.15f, 1f); // golden closed
             }
-            shapes.rect(c.pos.x - 0.5f, c.pos.y - 0.5f, 1f, 1f);
+            shapes.rect(c.pos.x - 0.55f, c.pos.y - 0.55f, 1.1f, 1.1f);
         }
     }
 
@@ -177,7 +177,7 @@ public final class WorldRenderer {
             if (c == null || c.pos == null) continue;
             Texture tx = resolveChestTexture(c);
             if (tx == null) continue;
-            batch.draw(tx, c.pos.x - 0.5f, c.pos.y - 0.5f, 1f, 1f);
+            batch.draw(tx, c.pos.x - 0.55f, c.pos.y - 0.55f, 1.1f, 1.1f);
         }
     }
 
@@ -208,7 +208,15 @@ public final class WorldRenderer {
         for (PickupDto p : snap.pickups) {
             if (p == null || p.pos == null) continue;
             Texture tx = resolvePickupTexture(p);
-            if (tx != null) batch.draw(tx, p.pos.x - 0.38f, p.pos.y - 0.38f, 0.76f, 0.76f);
+            if (tx == null) continue;
+            if (p.type == PickupType.WEAPON && tx == weaponTex.get(p.weaponType)) {
+                // Draw gun sprites with correct aspect ratio so they look like guns on the ground
+                float h = 0.5f;
+                float w = (tx.getHeight() > 0) ? h * tx.getWidth() / (float) tx.getHeight() : h;
+                batch.draw(tx, p.pos.x - w * 0.5f, p.pos.y - h * 0.5f, w, h);
+            } else {
+                batch.draw(tx, p.pos.x - 0.38f, p.pos.y - 0.38f, 0.76f, 0.76f);
+            }
         }
     }
 
@@ -289,11 +297,25 @@ public final class WorldRenderer {
         }
     }
 
+    /** Per-weapon right-hand offset (perpendicular distance from player centre). */
+    private static float weaponRightDist(WeaponType t) {
+        if (t == null) return 0.70f;
+        switch (t) {
+            case CROSSBOW:     return 0.42f;
+            case PISTOL:       return 0.84f;
+            case UZI:          return 0.84f;
+            case AK:           return 0.84f;
+            case MACHINEGUN:   return 0.70f;
+            case SHOTGUN:      return 0.70f;
+            case SNIPER:       return 0.70f;
+            case FLAMETHROWER: return 0.70f;
+            default:           return 0.70f;
+        }
+    }
+
     /**
      * Draws the equipped weapon sprite at the player's position, rotated toward
-     * {@code p.facing}. When the weapon would end up pointing left (|angle| > 90°)
-     * it is flipped horizontally so it never appears upside-down.
-     *
+     * {@code p.facing}.
      * All weapon PNGs are assumed to point straight RIGHT in their natural orientation.
      */
     private void drawWeaponOverlay(PlayerDto p) {
@@ -301,31 +323,31 @@ public final class WorldRenderer {
         Texture wt = weaponTex.get(p.equippedWeaponType);
         if (wt == null) return;
 
-        float angle  = (float) Math.toDegrees(Math.atan2(p.facing.y, p.facing.x));
-        boolean flip = Math.abs(angle) > 90f;
-        float drawAngle = flip ? (angle - 180f) : angle;
+        float angle = (float) Math.toDegrees(Math.atan2(p.facing.y, p.facing.x));
 
-        // Right hand: 90° CW from facing → (facing.y, -facing.x)
-        // Also pull back slightly opposite to facing so it sits at the hand position
-        float rightDist = 0.22f;
-        float backDist  = 0.25f;
+        // Right hand: perpendicular CW from facing (facing.y, -facing.x), pulled back
+        float rightDist = weaponRightDist(p.equippedWeaponType);
+        float backDist  = 0.75f;
         float handX = p.pos.x + ( p.facing.y) * rightDist - p.facing.x * backDist;
         float handY = p.pos.y + (-p.facing.x) * rightDist - p.facing.y * backDist;
 
         float weapW = 2.3285f;
-        float weapH = 0.7484f;
-        float origX = flip ? weapW : 0f;
+        float weapH = (wt.getWidth() > 0)
+                ? weapW * wt.getHeight() / (float) wt.getWidth()
+                : 0.7484f;
+        // No flip — always rotate freely; avoids the jump/position artifact at 90°
+        float origX = 0f;
         float origY = weapH / 2f;
 
         batch.draw(wt,
-                handX - origX,
+                handX,
                 handY - origY,
                 origX, origY,
                 weapW, weapH,
                 1f, 1f,
-                drawAngle,
+                angle,
                 0, 0, wt.getWidth(), wt.getHeight(),
-                flip, false);
+                false, false);
     }
 
     // ── Projectiles ──────────────────────────────────────────────────────────

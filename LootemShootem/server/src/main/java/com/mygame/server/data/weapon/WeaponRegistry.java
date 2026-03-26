@@ -39,13 +39,13 @@ public final class WeaponRegistry {
 
         // T1
         list.add(new WeaponSpec(WeaponType.PISTOL,      1,
-                28f, 14f, 0.10f, 2.2f,  7.0f,  15, 2, 1, 0.03f, 1.08f));
+                28f, 14f, 0.10f, 2.2f,  3.5f,  15, 2, 1, 0.03f, 1.08f));
 
         // T2 – short-range brawlers
         list.add(new WeaponSpec(WeaponType.UZI,         2,
                  8f, 10f, 0.09f, 0.45f,15.0f,  32, 2, 1, 0.07f, 1.4f));
         list.add(new WeaponSpec(WeaponType.SHOTGUN,     2,
-                10f,  9f, 0.11f, 0.35f,  1.5f,  8, 2, 6, 0.28f, 1.8f));
+                10f, 11f, 0.11f, 0.55f,  1.5f,  8, 2, 6, 0.28f, 1.8f));
 
         // T3
         list.add(new WeaponSpec(WeaponType.AK,          3,

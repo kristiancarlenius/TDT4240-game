@@ -14,6 +14,7 @@ public final class GameSessionService implements NetListener {
     private final ApplySnapshotUseCase applySnapshot;
     private final Runnable             onDisconnected;
     private NetClient                  net;
+    private volatile boolean           joined = false;
 
     public GameSessionService(WorldState worldState,
                               ApplySnapshotUseCase applySnapshot,
@@ -36,12 +37,17 @@ public final class GameSessionService implements NetListener {
         return net != null && net.isOpen();
     }
 
+    public boolean isJoined() {
+        return joined && net != null && net.isOpen();
+    }
+
     public void sendInput(InputMessage input) {
         if (net != null) net.sendInput(input);
     }
 
     @Override
     public void onJoinAccepted(String playerId, MapDto map, GameSnapshotDto initialSnapshot) {
+        joined = true;
         worldState.setLocalPlayerId(playerId);
         worldState.setMap(map);
         worldState.applySnapshot(initialSnapshot);
@@ -60,6 +66,7 @@ public final class GameSessionService implements NetListener {
 
     @Override
     public void onDisconnected(String reason) {
+        joined = false;
         System.err.println("[SESSION] Disconnected: " + reason);
         onDisconnected.run();
     }

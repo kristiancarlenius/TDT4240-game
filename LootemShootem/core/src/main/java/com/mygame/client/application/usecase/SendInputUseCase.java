@@ -16,7 +16,7 @@ public final class SendInputUseCase {
     }
 
     public void execute(Vec2 move, Vec2 aim, boolean shoot, boolean switchWeapon, boolean reload) {
-        if (!session.isConnected()) return;
+        if (!session.isJoined()) return;
         session.sendInput(new InputMessage(seq.getAndIncrement(), move, aim, shoot, switchWeapon, reload));
     }
 }

@@ -177,11 +177,11 @@ public final class HudRenderer {
                     + " / " + me.secondaryMags + " mags  [SPACE]", BAR_X, primY + 22f);
         }
 
-        // Reload progress bar — above the weapon text, clearly visible
+        // Reload progress bar — above the secondary weapon line
         if (me.isReloading && me.reloadTimer > 0f) {
             batch.end();
             float filled     = 1f - Math.min(1f, me.reloadTimer / 3f);
-            float reloadBarY = primY + 10f;
+            float reloadBarY = primY + 46f;
             shapes.setProjectionMatrix(screenProj);
             shapes.begin(ShapeRenderer.ShapeType.Filled);
             shapes.setColor(0.30f, 0.30f, 0.30f, 1f);

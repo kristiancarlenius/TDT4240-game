@@ -191,6 +191,22 @@ public final class ServerWorldStepSystem {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    /** Right-hand perpendicular offset for bullet spawn — mirrors client rendering. */
+    private static float spawnRightDist(WeaponType t) {
+        if (t == null) return 0.70f;
+        switch (t) {
+            case CROSSBOW:     return 0.42f;
+            case PISTOL:       return 0.84f;
+            case UZI:          return 0.84f;
+            case AK:           return 0.84f;
+            case MACHINEGUN:   return 0.70f;
+            case SHOTGUN:      return 0.70f;
+            case SNIPER:       return 0.70f;
+            case FLAMETHROWER: return 0.70f;
+            default:           return 0.70f;
+        }
+    }
+
     /** Weapon tier for drop-ranking. Package-visible so ChestSystem can share it. */
     static int weaponTier(WeaponType t) {
         if (t == null) return 0;
@@ -206,8 +222,12 @@ public final class ServerWorldStepSystem {
     }
 
     private void spawnProjectiles(PlayerState p, WeaponSpec spec) {
-        float sx      = p.pos.x + p.facing.x * (p.radius + 0.15f);
-        float sy      = p.pos.y + p.facing.y * (p.radius + 0.15f);
+        // Offset spawn to match the per-weapon visual barrel position
+        float rd = spawnRightDist(p.equippedWeaponType);
+        float rightOffX =  p.facing.y * rd;
+        float rightOffY = -p.facing.x * rd;
+        float sx = p.pos.x + p.facing.x * 1.55f + rightOffX;
+        float sy = p.pos.y + p.facing.y * 1.55f + rightOffY;
         int   pellets = Math.max(1, spec.pellets);
 
         for (int k = 0; k < pellets; k++) {
