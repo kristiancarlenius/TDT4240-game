@@ -41,14 +41,7 @@ public final class WorldRenderer {
     private final Map<WeaponType, Texture> weaponTex  = new EnumMap<>(WeaponType.class);
     private Texture playerLocalTex;
     private Texture playerEnemyTex;
-    // 8-directional sprite sheet: [row=direction][col=frame]
-    private Texture characterSheet;
-    private TextureRegion[][] characterFrames; // [8 directions][8 cols]
-    private float animTimer = 0f;
-    private static final float ANIM_FRAME_DT = 0.15f;
-    // Maps angle sector (0=right, CCW) to sprite-sheet row
-    // Sheet rows: 0=down,1=down-left,2=left,3=top-left,4=top,5=top-right,6=right,7=down-right
-    private static final int[] SECTOR_TO_ROW = {6, 5, 4, 3, 2, 1, 0, 7};
+    private Texture overheadTex;       // single top-down sprite, faces up in PNG
     private final Texture[] chestTex = new Texture[2]; // chest_0 / chest_1 for closed variants
     private Texture chestOpenTex;
     private Texture projBulletTex;
@@ -72,9 +65,9 @@ public final class WorldRenderer {
         tileTex.values().forEach(Texture::dispose);
         pickupTex.values().forEach(Texture::dispose);
         weaponTex.values().forEach(Texture::dispose);
-        if (playerLocalTex  != null) playerLocalTex.dispose();
-        if (playerEnemyTex  != null) playerEnemyTex.dispose();
-        if (characterSheet  != null) characterSheet.dispose();
+        if (playerLocalTex != null) playerLocalTex.dispose();
+        if (playerEnemyTex != null) playerEnemyTex.dispose();
+        if (overheadTex    != null) overheadTex.dispose();
         for (Texture t : chestTex) if (t != null) t.dispose();
         if (chestOpenTex   != null) chestOpenTex.dispose();
         if (projBulletTex  != null) projBulletTex.dispose();
@@ -243,7 +236,7 @@ public final class WorldRenderer {
         String localId = worldState.getLocalPlayerId();
         for (PlayerDto p : snap.players) {
             if (p.pos == null || p.isDead) continue;
-            if (characterFrames != null) continue; // sprite sheet handles all players
+            if (overheadTex != null) continue; // rotated sprite handles all players
             boolean isMe = localId != null && localId.equals(p.playerId);
             Texture tx = isMe ? playerLocalTex : playerEnemyTex;
             if (tx != null) continue;
@@ -260,27 +253,31 @@ public final class WorldRenderer {
     }
 
     private void drawPlayersSprites(GameSnapshotDto snap) {
-        animTimer += Gdx.graphics.getDeltaTime();
-
         String localId = worldState.getLocalPlayerId();
         for (PlayerDto p : snap.players) {
             if (p.pos == null || p.isDead) continue;
 
-            if (characterFrames != null) {
-                // Determine direction row from facing
-                int row = facingRow(p.facing);
-                // Determine animation column: stand=0, running alternates col 1 / col 3
-                boolean moving = p.vel != null
-                        && (Math.abs(p.vel.x) + Math.abs(p.vel.y)) > 0.05f;
-                int col;
-                if (moving) {
-                    int frame = (int)(animTimer / ANIM_FRAME_DT) % 2;
-                    col = (frame == 0) ? 1 : 3;
-                } else {
-                    col = 0;
-                }
-                batch.draw(characterFrames[row][col],
-                        p.pos.x - 0.5f, p.pos.y - 0.5f, 1f, 1f);
+            if (overheadTex != null) {
+                // PNG faces up → rotate to facing direction (same math as projectiles)
+                float angle = (p.facing != null)
+                        ? (float) Math.toDegrees(Math.atan2(p.facing.y, p.facing.x)) - 90f
+                        : -90f;
+                // Crop 20px border on each side, maintain aspect ratio, scale to 3.6 units tall
+                int crop  = 20;
+                int srcX  = crop;
+                int srcY  = crop;
+                int srcW  = overheadTex.getWidth()  - crop * 2;
+                int srcH  = overheadTex.getHeight() - crop * 2;
+                float charH = 3.6f;
+                float charW = charH * srcW / (float) srcH;
+                batch.draw(overheadTex,
+                        p.pos.x - charW * 0.5f, p.pos.y - charH * 0.5f,
+                        charW * 0.5f, charH * 0.5f,
+                        charW, charH,
+                        1f, 1f,
+                        angle,
+                        srcX, srcY, srcW, srcH,
+                        false, false);
             } else {
                 boolean isMe = localId != null && localId.equals(p.playerId);
                 Texture bodyTex = isMe ? playerLocalTex : playerEnemyTex;
@@ -288,23 +285,8 @@ public final class WorldRenderer {
                     batch.draw(bodyTex, p.pos.x - 0.5f, p.pos.y - 0.5f, 1f, 1f);
             }
 
-            // Equipped weapon drawn on top, rotated toward aim direction
             drawWeaponOverlay(p);
         }
-    }
-
-    /**
-     * Maps a facing vector to the sprite-sheet row (0–7).
-     * Angle sectors (each 45°) starting from right, going CCW:
-     *   0=right→row6, 1=top-right→row5, 2=top→row4, 3=top-left→row3,
-     *   4=left→row2,  5=down-left→row1,  6=down→row0, 7=down-right→row7
-     */
-    private int facingRow(com.mygame.shared.util.Vec2 facing) {
-        if (facing == null) return 0;
-        float angle = (float) Math.toDegrees(Math.atan2(facing.y, facing.x));
-        if (angle < 0) angle += 360f;
-        int sector = (int)((angle + 22.5f) / 45f) % 8;
-        return SECTOR_TO_ROW[sector];
     }
 
     /**
@@ -321,20 +303,23 @@ public final class WorldRenderer {
 
         float angle  = (float) Math.toDegrees(Math.atan2(p.facing.y, p.facing.x));
         boolean flip = Math.abs(angle) > 90f;
-        // With flipX the base direction is 180° and CCW rotation adds to it,
-        // so effective = 180° + drawAngle. To hit the target angle: drawAngle = angle - 180°.
         float drawAngle = flip ? (angle - 180f) : angle;
 
-        float weapW = 1.2936f;
-        float weapH = 0.4158f;
-        // Pivot at the grip end; swap to the other edge when flipped so the grip
-        // stays at the player's centre regardless of direction.
+        // Right hand: 90° CW from facing → (facing.y, -facing.x)
+        // Also pull back slightly opposite to facing so it sits at the hand position
+        float rightDist = 0.22f;
+        float backDist  = 0.25f;
+        float handX = p.pos.x + ( p.facing.y) * rightDist - p.facing.x * backDist;
+        float handY = p.pos.y + (-p.facing.x) * rightDist - p.facing.y * backDist;
+
+        float weapW = 2.3285f;
+        float weapH = 0.7484f;
         float origX = flip ? weapW : 0f;
         float origY = weapH / 2f;
 
         batch.draw(wt,
-                p.pos.x - origX,   // bottom-left x so that origX lands on player centre
-                p.pos.y - origY,   // bottom-left y so that origY is at vertical centre
+                handX - origX,
+                handY - origY,
                 origX, origY,
                 weapW, weapH,
                 1f, 1f,
@@ -419,17 +404,7 @@ public final class WorldRenderer {
         }
         playerLocalTex = tryLoad("characters/player_local.png");
         playerEnemyTex = tryLoad("characters/player_enemy.png");
-        characterSheet = tryLoad("characters/loose_sprites.png");
-        if (characterSheet != null) {
-            int cols = 8, rows = 8;
-            int sw = characterSheet.getWidth()  / cols;
-            int sh = characterSheet.getHeight() / rows;
-            characterFrames = new TextureRegion[rows][cols];
-            for (int r = 0; r < rows; r++)
-                for (int c = 0; c < cols; c++)
-                    characterFrames[r][c] = new TextureRegion(characterSheet,
-                            c * sw, r * sh, sw, sh);
-        }
+        overheadTex    = tryLoad("characters/overhead_top.png");
         chestTex[0]    = tryLoad("chests/chest_0.png");
         chestTex[1]    = tryLoad("chests/chest_1.png");
         chestOpenTex   = tryLoad("chests/chest_open.png");
