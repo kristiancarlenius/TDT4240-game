@@ -16,9 +16,13 @@ public final class InputHandler {
     public final float               switchBtnX;
     public final float               switchBtnY;
     public final float               switchBtnR;
+    public final float               reloadBtnX;
+    public final float               reloadBtnY;
+    public final float               reloadBtnR;
 
     private final OrthographicCamera camera;
     private boolean touchSwitchPending = false;
+    private boolean touchReloadPending = false;
 
     public InputHandler(OrthographicCamera camera) {
         this.camera = camera;
@@ -31,6 +35,9 @@ public final class InputHandler {
             switchBtnX = sw * 0.82f;
             switchBtnY = sh * 0.42f;
             switchBtnR = 40f;
+            reloadBtnX = sw * 0.68f;
+            reloadBtnY = sh * 0.42f;
+            reloadBtnR = 36f;
             registerTouchProcessor();
         } else {
             moveStick  = null;
@@ -38,6 +45,9 @@ public final class InputHandler {
             switchBtnX = 0f;
             switchBtnY = 0f;
             switchBtnR = 0f;
+            reloadBtnX = 0f;
+            reloadBtnY = 0f;
+            reloadBtnR = 0f;
         }
     }
 
@@ -80,6 +90,15 @@ public final class InputHandler {
         return Gdx.input.isKeyJustPressed(Input.Keys.SPACE);
     }
 
+    public boolean consumeReload() {
+        if (isAndroid()) {
+            boolean v = touchReloadPending;
+            touchReloadPending = false;
+            return v;
+        }
+        return Gdx.input.isKeyJustPressed(Input.Keys.R);
+    }
+
     public void clearInputProcessor() {
         Gdx.input.setInputProcessor(null);
     }
@@ -91,11 +110,17 @@ public final class InputHandler {
             @Override
             public boolean touchDown(int sx, int sy, int pointer, int button) {
                 int sh = Gdx.graphics.getHeight();
-                float bx = sx - switchBtnX;
-                float by = (sh - sy) - switchBtnY;
+                // Switch-weapon button
+                float bx = sx - switchBtnX, by = (sh - sy) - switchBtnY;
                 if (bx * bx + by * by <= switchBtnR * switchBtnR && switchPointer == -1) {
                     switchPointer      = pointer;
                     touchSwitchPending = true;
+                    return true;
+                }
+                // Reload button
+                float rx = sx - reloadBtnX, ry = (sh - sy) - reloadBtnY;
+                if (rx * rx + ry * ry <= reloadBtnR * reloadBtnR) {
+                    touchReloadPending = true;
                     return true;
                 }
                 if (moveStick.touchDown(sx, sy, pointer, sh)) return true;

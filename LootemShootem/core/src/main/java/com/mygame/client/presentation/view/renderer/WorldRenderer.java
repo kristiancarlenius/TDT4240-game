@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.mygame.client.domain.model.WorldState;
 import com.mygame.shared.dto.*;
+import com.mygame.shared.dto.ChestDto;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -39,6 +40,8 @@ public final class WorldRenderer {
     private final Map<WeaponType, Texture> weaponTex  = new EnumMap<>(WeaponType.class);
     private Texture playerLocalTex;
     private Texture playerEnemyTex;
+    private Texture chestClosedTex;
+    private Texture chestOpenTex;
 
     public WorldRenderer(WorldState worldState,
                          OrthographicCamera camera,
@@ -59,6 +62,8 @@ public final class WorldRenderer {
         weaponTex.values().forEach(Texture::dispose);
         if (playerLocalTex != null) playerLocalTex.dispose();
         if (playerEnemyTex != null) playerEnemyTex.dispose();
+        if (chestClosedTex != null) chestClosedTex.dispose();
+        if (chestOpenTex   != null) chestOpenTex.dispose();
     }
 
     // ---- Camera ----
@@ -85,6 +90,7 @@ public final class WorldRenderer {
 
         if (map  != null) drawMapShapes(map);
         if (snap != null) {
+            drawChestsShapes(snap);
             drawPickupsShapes(snap);
             drawPlayersShapes(snap);
             drawProjectilesShapes(snap);
@@ -98,6 +104,7 @@ public final class WorldRenderer {
 
         if (map  != null) drawMapSprites(map);
         if (snap != null) {
+            drawChestsSprites(snap);
             drawPickupsSprites(snap);
             drawPlayersSprites(snap);
         }
@@ -133,8 +140,44 @@ public final class WorldRenderer {
             case WALL:   shapes.setColor(0.20f, 0.20f, 0.22f, 1f); break;
             case WINDOW: shapes.setColor(0.25f, 0.35f, 0.45f, 1f); break;
             case TRAP:   shapes.setColor(0.50f, 0.20f, 0.20f, 1f); break;
+            case COBWEB: shapes.setColor(0.55f, 0.55f, 0.50f, 1f); break; // grey-white
             default:     shapes.setColor(0.12f, 0.12f, 0.14f, 1f); break;
         }
+    }
+
+    // ── Chests ───────────────────────────────────────────────────────────────
+
+    private void drawChestsShapes(GameSnapshotDto snap) {
+        if (snap.chests == null) return;
+        for (ChestDto c : snap.chests) {
+            if (c == null || c.pos == null) continue;
+            if (resolveChestTexture(c) != null) continue; // drawn in sprite pass
+            if (c.isOpen) {
+                shapes.setColor(0.25f, 0.18f, 0.10f, 1f); // dark open chest
+            } else {
+                shapes.setColor(0.75f, 0.55f, 0.15f, 1f); // golden closed
+            }
+            shapes.rect(c.pos.x - 0.35f, c.pos.y - 0.35f, 0.70f, 0.70f);
+            if (!c.isOpen) {
+                // small bright lid hint
+                shapes.setColor(0.95f, 0.80f, 0.30f, 1f);
+                shapes.rect(c.pos.x - 0.35f, c.pos.y + 0.10f, 0.70f, 0.10f);
+            }
+        }
+    }
+
+    private void drawChestsSprites(GameSnapshotDto snap) {
+        if (snap.chests == null) return;
+        for (ChestDto c : snap.chests) {
+            if (c == null || c.pos == null) continue;
+            Texture tx = resolveChestTexture(c);
+            if (tx == null) continue;
+            batch.draw(tx, c.pos.x - 0.40f, c.pos.y - 0.40f, 0.80f, 0.80f);
+        }
+    }
+
+    private Texture resolveChestTexture(ChestDto c) {
+        return c.isOpen ? chestOpenTex : chestClosedTex;
     }
 
     // ── Pickups ──────────────────────────────────────────────────────────────
@@ -244,6 +287,8 @@ public final class WorldRenderer {
         }
         playerLocalTex = tryLoad("characters/player_local.png");
         playerEnemyTex = tryLoad("characters/player_enemy.png");
+        chestClosedTex = tryLoad("chests/chest_closed.png");
+        chestOpenTex   = tryLoad("chests/chest_open.png");
     }
 
     /**

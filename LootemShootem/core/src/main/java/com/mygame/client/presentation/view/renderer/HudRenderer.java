@@ -134,21 +134,54 @@ public final class HudRenderer {
         font.setColor(Color.WHITE);
         font.draw(batch, "HP  " + (int) me.hp + " / 100", 20, barY + barH + 18f);
 
+        // Equipped weapon
+        String reloadHint = me.isReloading
+                ? "  RELOADING " + String.format("%.1f", me.reloadTimer) + "s..."
+                : (me.equippedAmmo == 0 && me.equippedMags == 0 ? "  NO AMMO" : "");
         String primary = me.equippedWeaponType != null
-                ? "[" + me.equippedWeaponType.name() + "]  " + me.equippedAmmo + " ammo" : "—";
-        font.setColor(new Color(0.95f, 0.95f, 0.60f, 1f));
+                ? "[" + me.equippedWeaponType.name() + "]  "
+                    + me.equippedAmmo + " / " + me.equippedMags + " mags" + reloadHint
+                : "—";
+        font.setColor(me.isReloading
+                ? new Color(1f, 0.60f, 0.10f, 1f)
+                : new Color(0.95f, 0.95f, 0.60f, 1f));
         font.draw(batch, primary, 20, barY + barH + 36f);
+
+        // Reload progress bar
+        if (me.isReloading && me.reloadTimer > 0f) {
+            batch.end();
+            float maxReload = me.reloadTimer; // approximate; server sends remaining
+            float filled    = 1f - Math.min(1f, me.reloadTimer / 3f); // rough visual
+            shapes.setProjectionMatrix(screenProj);
+            shapes.begin(ShapeRenderer.ShapeType.Filled);
+            shapes.setColor(0.30f, 0.30f, 0.30f, 1f);
+            shapes.rect(20, barY + barH + 16f, 200f, 6f);
+            shapes.setColor(1f, 0.65f, 0.10f, 1f);
+            shapes.rect(20, barY + barH + 16f, 200f * filled, 6f);
+            shapes.end();
+            batch.setProjectionMatrix(screenProj);
+            batch.begin();
+        }
 
         if (me.secondaryWeaponType != null) {
             font.setColor(new Color(0.70f, 0.70f, 0.70f, 1f));
             font.draw(batch, me.secondaryWeaponType.name() + "  " + me.secondaryAmmo
-                    + " ammo  [SPACE]", 20, barY + barH + 56f);
+                    + " / " + me.secondaryMags + " mags  [SPACE]", 20, barY + barH + 56f);
         }
 
-        if (me.speedBoostTimer > 0f) {
+        if (me.speedTier > 0) {
             font.setColor(new Color(0.20f, 0.85f, 0.95f, 1f));
-            font.draw(batch, "SPEED BOOST  " + (int) Math.ceil(me.speedBoostTimer) + "s",
+            String speedLabel = "SPD TIER " + me.speedTier + " / 5  (x"
+                    + String.format("%.2f", 1f + me.speedTier * 0.15f) + ")";
+            font.draw(batch, speedLabel,
                     20, barY + barH + (me.secondaryWeaponType != null ? 76f : 56f));
+        }
+        if (me.maxHp > 100f) {
+            font.setColor(new Color(0.90f, 0.45f, 0.90f, 1f));
+            float nextRow = barY + barH + (me.secondaryWeaponType != null ? 76f : 56f)
+                    + (me.speedTier > 0 ? 20f : 0f);
+            font.draw(batch, "MAX HP " + (int) me.maxHp + "  (tier " + me.healthTier + " / 10)",
+                    20, nextRow);
         }
 
         // Own kill count + time survived (top-right, above the leaderboard)
@@ -294,10 +327,16 @@ public final class HudRenderer {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         inputHandler.moveStick.render(shapes);
         inputHandler.aimStick.render(shapes);
+        // Switch weapon button (purple)
         shapes.setColor(0.55f, 0.30f, 0.80f, 0.75f);
         shapes.circle(inputHandler.switchBtnX, inputHandler.switchBtnY, inputHandler.switchBtnR, 24);
         shapes.setColor(0.35f, 0.15f, 0.55f, 0.85f);
         shapes.circle(inputHandler.switchBtnX, inputHandler.switchBtnY, inputHandler.switchBtnR - 5f, 24);
+        // Reload button (orange)
+        shapes.setColor(0.85f, 0.45f, 0.10f, 0.80f);
+        shapes.circle(inputHandler.reloadBtnX, inputHandler.reloadBtnY, inputHandler.reloadBtnR, 24);
+        shapes.setColor(0.60f, 0.28f, 0.05f, 0.90f);
+        shapes.circle(inputHandler.reloadBtnX, inputHandler.reloadBtnY, inputHandler.reloadBtnR - 5f, 24);
         shapes.end();
 
         batch.setProjectionMatrix(screenProj);
@@ -307,6 +346,10 @@ public final class HudRenderer {
         font.draw(batch, "SW",
                 inputHandler.switchBtnX - layout.width / 2f,
                 inputHandler.switchBtnY + layout.height / 2f);
+        layout.setText(font, "R");
+        font.draw(batch, "R",
+                inputHandler.reloadBtnX - layout.width / 2f,
+                inputHandler.reloadBtnY + layout.height / 2f);
         batch.end();
     }
 

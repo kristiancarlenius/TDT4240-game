@@ -3,6 +3,7 @@ package com.mygame.shared.dto;
 public enum TileType {
     FLOOR,
     WALL,
-    WINDOW,   // projectile passes, player doesn't
-    TRAP      // walkable but damages on server
+    WINDOW,   // projectiles pass through, players cannot
+    TRAP,     // walkable; damages over time
+    COBWEB    // walkable; reduces move speed to 1/3
 }

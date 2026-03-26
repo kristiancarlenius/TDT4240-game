@@ -19,10 +19,11 @@ public final class ServerGameState {
 
     public long tick = 0;
 
-    public final Map<String, PlayerState> players = new ConcurrentHashMap<>();
-    public final List<ProjectileState> projectiles = Collections.synchronizedList(new ArrayList<>());
-    public final List<PickupState> pickups = Collections.synchronizedList(new ArrayList<>());
-    public final List<String> killFeedQueue = Collections.synchronizedList(new ArrayList<>());
+    public final Map<String, PlayerState> players     = new ConcurrentHashMap<>();
+    public final List<ProjectileState>   projectiles = Collections.synchronizedList(new ArrayList<>());
+    public final List<PickupState>       pickups     = Collections.synchronizedList(new ArrayList<>());
+    public final List<ChestState>        chests      = Collections.synchronizedList(new ArrayList<>());
+    public final List<String>            killFeedQueue = Collections.synchronizedList(new ArrayList<>());
 
     private final Random spawnRng = new Random();
 
@@ -145,6 +146,14 @@ public final class ServerGameState {
         int ty = (int)Math.floor(wy);
         if (!inBounds(tx, ty)) return false;
         return Tile.damagePerSecond(tiles[idx(tx, ty, width)]) > 0f;
+    }
+
+    /** Returns the speed modifier for the tile at the given world position (1.0 = normal). */
+    public float tileSpeedModifier(float wx, float wy) {
+        int tx = (int)Math.floor(wx);
+        int ty = (int)Math.floor(wy);
+        if (!inBounds(tx, ty)) return 1f;
+        return Tile.speedModifier(tiles[idx(tx, ty, width)]);
     }
 
     private boolean inBounds(int x, int y) {

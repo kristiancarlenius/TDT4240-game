@@ -24,9 +24,24 @@ public final class PlayerDto {
 
     // Secondary weapon slot (null = empty)
     public WeaponType secondaryWeaponType;
-    public int secondaryAmmo;
+    public int        secondaryAmmo;
+    public int        secondaryMags;
+
+    /** Spare magazines for the equipped weapon. */
+    public int     equippedMags;
+    /** True while a reload animation is in progress. */
+    public boolean isReloading;
+    /** Seconds remaining in the current reload (0 when not reloading). */
+    public float   reloadTimer;
 
     public String lastPickupNotice;
+
+    /** Permanent speed tier (0–5). Each tier adds 15% base speed. */
+    public int   speedTier;
+    /** Max-HP upgrade level (0–10). Each level adds +10 to maxHp. */
+    public int   healthTier;
+    /** Current max HP (100 + healthTier * 10). */
+    public float maxHp;
 
     public PlayerDto() {}
 
