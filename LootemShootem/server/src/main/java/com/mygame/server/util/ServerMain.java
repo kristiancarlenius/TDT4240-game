@@ -21,7 +21,7 @@ public final class ServerMain {
         RateLimiter rateLimiter = new RateLimiter(60);
 
         // Use cases
-        HandleJoinUseCase  joinUseCase  = new HandleJoinUseCase(matchService);
+        HandleJoinUseCase  joinUseCase  = new HandleJoinUseCase(matchService, config.maxPlayers);
         HandleLeaveUseCase leaveUseCase = new HandleLeaveUseCase(matchService, rateLimiter);
         HandleInputUseCase inputUseCase = new HandleInputUseCase(matchService, rateLimiter);
 

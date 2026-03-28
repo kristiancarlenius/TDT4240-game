@@ -26,6 +26,7 @@ public final class GameController {
     }
 
     public void update(float delta) {
+        inputHandler.pollLatching(); // capture just-pressed keys before the send window fires
         PlayerDto me = worldState.getLocalPlayer();
         accumulator += delta;
         while (accumulator >= SEND_DT) {
@@ -36,7 +37,8 @@ public final class GameController {
                 Vec2    aim       = inputHandler.getAim(playerPos);
                 boolean shoot     = inputHandler.isShoot();
                 boolean sw        = inputHandler.consumeSwitchWeapon();
-                sendInput.execute(move, aim, shoot, sw);
+                boolean reload    = inputHandler.consumeReload();
+                sendInput.execute(move, aim, shoot, sw, reload);
             }
         }
     }

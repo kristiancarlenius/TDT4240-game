@@ -9,63 +9,95 @@ public final class PlayerState {
     public final String username;
 
     public Vec2 pos;
-    public Vec2 vel = Vec2.zero();
+    public Vec2 vel    = Vec2.zero();
     public Vec2 facing = new Vec2(1f, 0f);
 
-    public static final float BASE_MOVE_SPEED = 4.5f;
+    public static final float BASE_MOVE_SPEED  = 4.5f;
+    public static final int   MAX_SPEED_TIER   = 10;
+    public static final int   MAX_HEALTH_TIER  = 10;
 
-    public float hp = 100f;
+    public int   speedTier  = 0;
+    public int   healthTier = 0;
+    public float maxHp      = 100f;
+
+    public static float speedForTier(int tier) {
+        return BASE_MOVE_SPEED * (1f + tier * 0.25f);
+    }
+
+    public float hp        = 100f;
     public float moveSpeed = BASE_MOVE_SPEED;
+    public float radius    = 0.30f;
 
-    public float radius = 0.30f;
-    public float shootCooldownSeconds = 0f;
-
-    public WeaponType[] inventory   = new WeaponType[2]; // slot 0 = primary, slot 1 = secondary
-    public int[]        ammoBySlot  = new int[2];
+    // ── Weapons ──────────────────────────────────────────────────────────────
+    public WeaponType[] inventory  = new WeaponType[2];
+    public int[]        ammoBySlot = new int[2];
+    public int[]        magsBySlot = new int[2]; // spare magazines per slot
     public int          currentSlot = 0;
 
-    // kept in sync with inventory[currentSlot]
+    // Mirrors of the equipped slot — kept in sync by syncEquipped()
     public WeaponType equippedWeaponType = WeaponType.CROSSBOW;
-    public int        equippedAmmo       = 25;
+    public int        equippedAmmo       = 0;
+    public int        equippedMags       = 0;
 
-    public int lastSwitchSeq = 0;
+    // ── Reload ───────────────────────────────────────────────────────────────
+    public boolean isReloading  = false;
+    public float   reloadTimer  = 0f;
 
-    public int     score         = 0;
-    public float   timeSurvived  = 0f;
-    public boolean isDead        = false;
-    public boolean justDied      = false; // true for one tick after death, triggers loot drop
-    public float   respawnTimer  = 0f;
-    public float   speedBoostTimer = 0f;
+    // ── Combat ───────────────────────────────────────────────────────────────
+    public float shootCooldownSeconds = 0f;
+    public int   lastSwitchSeq        = 0;
+    public int   lastReloadSeq        = 0;
+
+    // ── Stats ────────────────────────────────────────────────────────────────
+    public int     score        = 0;
+    public float   timeSurvived = 0f;
+    public boolean isDead       = false;
+    public boolean justDied     = false;
+    public float   respawnTimer = 0f;
+
+    /** Legacy — kept so existing HUD code compiles; timed boosts removed. */
+    public float speedBoostTimer = 0f;
+
+    /** Movement freeze after opening a chest (seconds). */
+    public float chestFreezeTimer = 0f;
+
+    public String lastPickupNotice;
 
     public PlayerState(String playerId, String username, Vec2 spawnPos) {
         this.playerId = playerId;
         this.username = username;
         this.pos      = spawnPos;
-        // Slot 0 starts with CROSSBOW; slot 1 is empty
         inventory[0]  = WeaponType.CROSSBOW;
-        ammoBySlot[0] = 25; // will be overwritten by WeaponRegistry value on join
         inventory[1]  = null;
-        ammoBySlot[1] = 0;
     }
 
+    /** Sync the equipped-slot mirrors after any slot mutation. */
     public void syncEquipped() {
         equippedWeaponType = inventory[currentSlot];
         equippedAmmo       = ammoBySlot[currentSlot];
+        equippedMags       = magsBySlot[currentSlot];
     }
 
     public PlayerDto toDto() {
         PlayerDto dto = new PlayerDto(
                 playerId, username, pos, vel, facing,
                 hp, moveSpeed, equippedWeaponType, equippedAmmo);
-        dto.score          = score;
-        dto.timeSurvived   = timeSurvived;
-        dto.isDead         = isDead;
-        dto.respawnTimer   = respawnTimer;
-        dto.speedBoostTimer = speedBoostTimer;
-        // Secondary slot
+        dto.score               = score;
+        dto.timeSurvived        = timeSurvived;
+        dto.isDead              = isDead;
+        dto.respawnTimer        = respawnTimer;
+        dto.speedBoostTimer     = speedBoostTimer;
+        dto.speedTier           = speedTier;
+        dto.healthTier          = healthTier;
+        dto.maxHp               = maxHp;
+        dto.equippedMags        = equippedMags;
+        dto.isReloading         = isReloading;
+        dto.reloadTimer         = reloadTimer;
         int sec = 1 - currentSlot;
         dto.secondaryWeaponType = inventory[sec];
         dto.secondaryAmmo       = ammoBySlot[sec];
+        dto.secondaryMags       = magsBySlot[sec];
+        dto.lastPickupNotice    = lastPickupNotice;
         return dto;
     }
 }

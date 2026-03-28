@@ -18,9 +18,16 @@ public final class InputHandler {
     public final float               switchBtnX;
     public final float               switchBtnY;
     public final float               switchBtnR;
+    public final float               reloadBtnX;
+    public final float               reloadBtnY;
+    public final float               reloadBtnR;
 
     private final OrthographicCamera camera;
-    private boolean touchSwitchPending = false;
+    private boolean touchSwitchPending  = false;
+    private boolean touchReloadPending  = false;
+    // Desktop latches: set every frame, cleared when consumed (prevents missing fast key taps)
+    private boolean desktopSwitchLatch  = false;
+    private boolean desktopReloadLatch  = false;
     private final PreferencesPort prefs;
 
     public InputHandler(OrthographicCamera camera) {
@@ -41,6 +48,9 @@ public final class InputHandler {
             switchBtnX = aimX;
             switchBtnY = sh * 0.42f;
             switchBtnR = 40f;
+            reloadBtnX = sw * 0.68f;
+            reloadBtnY = sh * 0.42f;
+            reloadBtnR = 36f;
             registerTouchProcessor();
         } else {
             moveStick  = null;
@@ -48,10 +58,25 @@ public final class InputHandler {
             switchBtnX = 0f;
             switchBtnY = 0f;
             switchBtnR = 0f;
+            reloadBtnX = 0f;
+            reloadBtnY = 0f;
+            reloadBtnR = 0f;
         }
     }
 
     public boolean isAndroid() { return moveStick != null; }
+
+    /**
+     * Must be called every rendered frame (before the input-send accumulator fires).
+     * Latches just-pressed desktop keys so they are never missed even when the
+     * 20 Hz send window doesn't align with the key-down frame.
+     */
+    public void pollLatching() {
+        if (!isAndroid()) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) desktopSwitchLatch = true;
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R))     desktopReloadLatch = true;
+        }
+    }
 
     public Vec2 getMove() {
         if (isAndroid()) return moveStick.getDirection();
@@ -87,7 +112,20 @@ public final class InputHandler {
             touchSwitchPending = false;
             return v;
         }
-        return Gdx.input.isKeyJustPressed(Input.Keys.SPACE);
+        boolean v = desktopSwitchLatch;
+        desktopSwitchLatch = false;
+        return v;
+    }
+
+    public boolean consumeReload() {
+        if (isAndroid()) {
+            boolean v = touchReloadPending;
+            touchReloadPending = false;
+            return v;
+        }
+        boolean v = desktopReloadLatch;
+        desktopReloadLatch = false;
+        return v;
     }
 
     public void clearInputProcessor() {
@@ -101,11 +139,17 @@ public final class InputHandler {
             @Override
             public boolean touchDown(int sx, int sy, int pointer, int button) {
                 int sh = Gdx.graphics.getHeight();
-                float bx = sx - switchBtnX;
-                float by = (sh - sy) - switchBtnY;
+                // Switch-weapon button
+                float bx = sx - switchBtnX, by = (sh - sy) - switchBtnY;
                 if (bx * bx + by * by <= switchBtnR * switchBtnR && switchPointer == -1) {
                     switchPointer      = pointer;
                     touchSwitchPending = true;
+                    return true;
+                }
+                // Reload button
+                float rx = sx - reloadBtnX, ry = (sh - sy) - reloadBtnY;
+                if (rx * rx + ry * ry <= reloadBtnR * reloadBtnR) {
+                    touchReloadPending = true;
                     return true;
                 }
                 if (moveStick.touchDown(sx, sy, pointer, sh)) return true;

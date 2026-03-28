@@ -5,11 +5,8 @@ import com.badlogic.gdx.Screen;
 import com.mygame.client.presentation.screens.GameScreen;
 import com.mygame.client.presentation.screens.MainMenuScreen;
 import com.mygame.client.presentation.screens.SettingsScreen;
+import com.mygame.client.presentation.screens.TutorialScreen;
 
-/**
- * Central navigation controller. All screen transitions go through here so
- * that no screen holds a direct reference to another screen.
- */
 public final class Navigator {
 
     private final Game game;
@@ -24,6 +21,10 @@ public final class Navigator {
 
     public void showGame(String serverUrl, String username) {
         switchTo(new GameScreen(this, serverUrl, username));
+    }
+
+    public void showTutorial(String serverUrl, String username) {
+        switchTo(new TutorialScreen(this, serverUrl, username));
     }
 
     public void showSettings(String serverUrl, String username) {

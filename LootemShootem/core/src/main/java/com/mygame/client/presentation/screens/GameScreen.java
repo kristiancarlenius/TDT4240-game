@@ -11,7 +11,9 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.mygame.client.application.service.GameSessionService;
 import com.mygame.client.application.usecase.ApplySnapshotUseCase;
 import com.mygame.client.application.usecase.SendInputUseCase;
+import com.mygame.client.data.repository.PreferencesRepository;
 import com.mygame.client.domain.model.WorldState;
+import com.mygame.client.domain.ports.PreferencesPort;
 import com.mygame.client.presentation.controller.GameController;
 import com.mygame.client.presentation.navigation.Navigator;
 import com.mygame.client.presentation.view.input.InputHandler;
@@ -64,10 +66,12 @@ public final class GameScreen implements Screen {
                 () -> Gdx.app.postRunnable(() -> navigator.showMainMenu(serverUrl, username)));
         SendInputUseCase sendInput = new SendInputUseCase(session);
 
+        PreferencesPort prefs = new PreferencesRepository();
+
         inputHandler  = new InputHandler(camera);
         controller    = new GameController(worldState, inputHandler, sendInput);
-        worldRenderer = new WorldRenderer(worldState, camera, shapes);
-        hudRenderer   = new HudRenderer(worldState, inputHandler, shapes, batch, font, bigFont);
+        worldRenderer = new WorldRenderer(worldState, camera, shapes, batch);
+        hudRenderer   = new HudRenderer(worldState, inputHandler, shapes, batch, font, bigFont, prefs);
 
         session.connect(serverUrl, username);
     }
@@ -104,10 +108,11 @@ public final class GameScreen implements Screen {
 
     @Override
     public void dispose() {
-        if (session != null) session.disconnect();
-        if (shapes  != null) shapes.dispose();
-        if (batch   != null) batch.dispose();
-        if (font    != null) font.dispose();
-        if (bigFont != null) bigFont.dispose();
+        if (session       != null) session.disconnect();
+        if (worldRenderer != null) worldRenderer.dispose();
+        if (shapes        != null) shapes.dispose();
+        if (batch         != null) batch.dispose();
+        if (font          != null) font.dispose();
+        if (bigFont       != null) bigFont.dispose();
     }
 }

@@ -18,6 +18,7 @@ public final class GameWebSocketServer extends WebSocketServer {
                                HandleLeaveUseCase leaveUseCase,
                                HandleInputUseCase inputUseCase) {
         super(new InetSocketAddress(port));
+        setReuseAddr(true);
         this.router = new MessageRouter(joinUseCase, leaveUseCase, inputUseCase);
     }
 

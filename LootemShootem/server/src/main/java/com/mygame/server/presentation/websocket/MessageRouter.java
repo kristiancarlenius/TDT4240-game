@@ -17,8 +17,16 @@ import java.util.concurrent.ConcurrentHashMap;
  * Routes incoming WebSocket messages to the appropriate use case.
  * Keeps presentation logic (protocol, codec, connection tracking) here
  * and business logic in the use cases.
+ *
+ * Security notes:
+ *  - Messages over MAX_MESSAGE_CHARS are rejected before parsing (DoS / parser-bomb guard).
+ *  - Vec2 fields in InputMessage are validated for NaN/Infinity before being forwarded.
+ *  - Username sanitisation lives in HandleJoinUseCase.
  */
 public final class MessageRouter {
+
+    /** ~4 KB – enough for any valid protocol message while blocking oversized payloads. */
+    private static final int MAX_MESSAGE_CHARS = 4096;
 
     private final HandleJoinUseCase  joinUseCase;
     private final HandleLeaveUseCase leaveUseCase;
@@ -46,6 +54,10 @@ public final class MessageRouter {
     }
 
     public void onTextMessage(WebSocket conn, String json) {
+        if (json == null || json.length() > MAX_MESSAGE_CHARS) {
+            conn.send(codec.encode(new ErrorMessage("too_large", "Message exceeds size limit")));
+            return;
+        }
         try {
             Object msg = codec.decode(json);
 
@@ -69,7 +81,12 @@ public final class MessageRouter {
                             new ErrorMessage("not_joined", "Send JoinRequest first")));
                     return;
                 }
-                inputUseCase.execute(playerId, (InputMessage) msg);
+                InputMessage input = (InputMessage) msg;
+                if (!isValidInput(input)) {
+                    // Silently drop malformed input — never disconnect, just ignore.
+                    return;
+                }
+                inputUseCase.execute(playerId, input);
                 return;
             }
 
@@ -85,5 +102,20 @@ public final class MessageRouter {
     /** Called by tick loop — broadcasts the pre-encoded snapshot to everyone. */
     public void broadcastSnapshot(String snapshotJson) {
         // kept for backward-compat; wiring now goes through BroadcastSnapshotUseCase
+    }
+
+    // ---- Input validation ----
+
+    private static boolean isValidInput(InputMessage m) {
+        if (m == null || m.seq < 0) return false;
+        if (!isValidVec2(m.move)) return false;
+        if (!isValidVec2(m.aim))  return false;
+        return true;
+    }
+
+    private static boolean isValidVec2(com.mygame.shared.util.Vec2 v) {
+        if (v == null) return true; // null means "no input", handled downstream
+        return !Float.isNaN(v.x) && !Float.isInfinite(v.x)
+            && !Float.isNaN(v.y) && !Float.isInfinite(v.y);
     }
 }

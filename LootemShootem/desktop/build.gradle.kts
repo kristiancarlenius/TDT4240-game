@@ -23,3 +23,9 @@ java {
         languageVersion.set(JavaLanguageVersion.of(11))
     }
 }
+
+// LibGDX internal files resolve relative to the working directory.
+// Point the run task at the shared assets folder so textures are found.
+tasks.named<JavaExec>("run") {
+    workingDir = rootProject.file("assets")
+}

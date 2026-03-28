@@ -7,7 +7,6 @@ import com.mygame.shared.dto.TileType;
 import com.mygame.shared.util.Vec2;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Random;
 
 public final class ServerGameState {
 
@@ -20,11 +19,13 @@ public final class ServerGameState {
 
     public long tick = 0;
 
-    public final Map<String, PlayerState> players = new ConcurrentHashMap<>();
-    public final List<ProjectileState> projectiles = Collections.synchronizedList(new ArrayList<>());
-    public final List<PickupState> pickups = Collections.synchronizedList(new ArrayList<>());
-    public final List<String> killFeedQueue = Collections.synchronizedList(new ArrayList<>());
+    public final Map<String, PlayerState> players     = new ConcurrentHashMap<>();
+    public final List<ProjectileState>   projectiles = Collections.synchronizedList(new ArrayList<>());
+    public final List<PickupState>       pickups     = Collections.synchronizedList(new ArrayList<>());
+    public final List<ChestState>        chests      = Collections.synchronizedList(new ArrayList<>());
+    public final List<String>            killFeedQueue = Collections.synchronizedList(new ArrayList<>());
 
+    private final Random spawnRng = new Random();
     private int spawnIndex = 0;
 
     private ServerGameState(String mapId, int width, int height, TileType[] tiles) {
@@ -68,6 +69,44 @@ public final class ServerGameState {
         return new MapDto(mapId, width, height, tiles);
     }
 
+    /**
+     * Finds a safe spawn position on a FLOOR tile that is not occupied by
+     * an alive player or a pickup.  Falls back to any floor tile if the map
+     * is too crowded.
+     */
+    public Vec2 findSafeSpawn() {
+        List<Vec2> candidates = new ArrayList<>();
+        for (int y = 1; y < height - 1; y++) {
+            for (int x = 1; x < width - 1; x++) {
+                if (tiles[idx(x, y, width)] == TileType.FLOOR) {
+                    candidates.add(new Vec2(x + 0.5f, y + 0.5f));
+                }
+            }
+        }
+
+        // Remove tiles too close to alive players (1.5-tile safety radius)
+        for (PlayerState p : players.values()) {
+            if (!p.isDead && p.pos != null) {
+                candidates.removeIf(c -> dist2(c, p.pos) < 2.25f);
+            }
+        }
+
+        // Remove tiles occupied by a pickup
+        for (PickupState pk : pickups) {
+            if (pk.pos != null) {
+                candidates.removeIf(c -> dist2(c, pk.pos) < 0.64f);
+            }
+        }
+
+        if (candidates.isEmpty()) return randomFloorTile(spawnRng);
+        return candidates.get(spawnRng.nextInt(candidates.size()));
+    }
+
+    /**
+     * Cycles through a set of fixed corner/centre spawn points, skipping any
+     * that land inside a wall tile.  Used by PlayerSystem on respawn so that
+     * players never appear inside walls.
+     */
     public Vec2 findNextSpawn() {
         // A few fixed spawns (world coords are tile centers)
         Vec2[] spawns = new Vec2[]{
@@ -97,6 +136,11 @@ public final class ServerGameState {
             }
         }
         return new Vec2(width / 2f, height / 2f);
+    }
+
+    private static float dist2(Vec2 a, Vec2 b) {
+        float dx = a.x - b.x, dy = a.y - b.y;
+        return dx * dx + dy * dy;
     }
 
     /** Returns the centre of a random floor tile (excluding border). */
@@ -139,6 +183,14 @@ public final class ServerGameState {
         int ty = (int)Math.floor(wy);
         if (!inBounds(tx, ty)) return false;
         return Tile.damagePerSecond(tiles[idx(tx, ty, width)]) > 0f;
+    }
+
+    /** Returns the speed modifier for the tile at the given world position (1.0 = normal). */
+    public float tileSpeedModifier(float wx, float wy) {
+        int tx = (int)Math.floor(wx);
+        int ty = (int)Math.floor(wy);
+        if (!inBounds(tx, ty)) return 1f;
+        return Tile.speedModifier(tiles[idx(tx, ty, width)]);
     }
 
     private boolean inBounds(int x, int y) {

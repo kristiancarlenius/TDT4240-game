@@ -3,9 +3,10 @@ package com.mygame.shared.dto;
 public enum WeaponType {
     CROSSBOW,
     PISTOL,
-    SHOTGUN,   
-    SNIPER,
+    UZI,
+    SHOTGUN,
     AK,
-    FLAMETHROWER,
-    MACHINEGUN
+    MACHINEGUN,
+    SNIPER,
+    FLAMETHROWER
 }

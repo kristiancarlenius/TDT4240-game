@@ -16,15 +16,18 @@ public final class InputMessage implements ClientMessage {
 
     public boolean shoot;
     public boolean switchWeapon;
+    public boolean reload;
 
     public InputMessage() {}
 
-    public InputMessage(int seq, Vec2 move, Vec2 aim, boolean shoot, boolean switchWeapon) {
-        this.seq = seq;
-        this.move = move;
-        this.aim = aim;
-        this.shoot = shoot;
+    public InputMessage(int seq, Vec2 move, Vec2 aim,
+                        boolean shoot, boolean switchWeapon, boolean reload) {
+        this.seq          = seq;
+        this.move         = move;
+        this.aim          = aim;
+        this.shoot        = shoot;
         this.switchWeapon = switchWeapon;
+        this.reload       = reload;
     }
 
     @Override
