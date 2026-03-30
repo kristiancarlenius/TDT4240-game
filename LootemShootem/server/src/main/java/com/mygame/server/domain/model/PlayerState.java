@@ -26,7 +26,6 @@ public final class PlayerState {
 
     public float hp        = 100f;
     public float moveSpeed = BASE_MOVE_SPEED;
-    /** Hitbox radius. Client renders at 0.50f (shapes) or ~3.6h (sprites). 0.60f matches visuals better. */
     public float radius    = 0.60f;
 
     // ── Weapons ──────────────────────────────────────────────────────────────

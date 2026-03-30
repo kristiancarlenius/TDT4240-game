@@ -30,7 +30,6 @@ public final class ProjectileSystem {
                 continue;
             }
 
-            // High-speed bullets (like sniper) might move more than their own size in one frame.
             // Sub-stepping checks multiple points along the path.
             int steps = (int) Math.ceil(Math.sqrt(pr.vel.x * pr.vel.x + pr.vel.y * pr.vel.y) * dt / 0.2f);
             steps = Math.max(1, steps);

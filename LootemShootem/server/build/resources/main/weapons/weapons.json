@@ -21,7 +21,7 @@
       "projectileSpeed": 14.0,
       "projectileRadius": 0.10,
       "ttlSeconds": 2.2,
-      "fireRate": 3.5,
+      "fireRate": 7.0,
       "maxAmmo": 15,
       "numMagazines": 2,
       "pellets": 1,
