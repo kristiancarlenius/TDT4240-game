@@ -26,7 +26,7 @@ public final class PlayerState {
 
     public float hp        = 100f;
     public float moveSpeed = BASE_MOVE_SPEED;
-    public float radius    = 0.30f;
+    public float radius    = 0.60f;
 
     // ── Weapons ──────────────────────────────────────────────────────────────
     public WeaponType[] inventory  = new WeaponType[2];
@@ -47,6 +47,7 @@ public final class PlayerState {
     public float shootCooldownSeconds = 0f;
     public int   lastSwitchSeq        = 0;
     public int   lastReloadSeq        = 0;
+    public float hurtTimer            = 0f;
 
     // ── Stats ────────────────────────────────────────────────────────────────
     public int     score        = 0;
@@ -93,6 +94,7 @@ public final class PlayerState {
         dto.equippedMags        = equippedMags;
         dto.isReloading         = isReloading;
         dto.reloadTimer         = reloadTimer;
+        dto.isHurt              = hurtTimer > 0f;
         int sec = 1 - currentSlot;
         dto.secondaryWeaponType = inventory[sec];
         dto.secondaryAmmo       = ammoBySlot[sec];

@@ -248,8 +248,14 @@ public final class WorldRenderer {
             boolean isMe = localId != null && localId.equals(p.playerId);
             Texture tx = isMe ? playerLocalTex : playerEnemyTex;
             if (tx != null) continue;
-            shapes.setColor(isMe ? new Color(0.20f, 0.85f, 0.20f, 1f)
-                                 : new Color(0.85f, 0.20f, 0.20f, 1f));
+
+            if (p.isHurt) {
+                shapes.setColor(1.0f, 1.0f, 1.0f, 1f); // flash white
+            } else {
+                shapes.setColor(isMe ? new Color(0.20f, 0.85f, 0.20f, 1f)
+                        : new Color(0.85f, 0.20f, 0.20f, 1f));
+            }
+
             shapes.circle(p.pos.x, p.pos.y, 0.50f, 16);
             if (p.facing != null) {
                 shapes.setColor(0.95f, 0.95f, 0.95f, 1f);
@@ -264,6 +270,12 @@ public final class WorldRenderer {
         String localId = worldState.getLocalPlayerId();
         for (PlayerDto p : snap.players) {
             if (p.pos == null || p.isDead) continue;
+
+            if (p.isHurt) {
+                batch.setColor(1f, 0.3f, 0.3f, 1f); // Tint red-ish when hurt
+            } else {
+                batch.setColor(Color.WHITE);
+            }
 
             if (overheadTex != null) {
                 // PNG faces up → rotate to facing direction (same math as projectiles)
@@ -294,6 +306,9 @@ public final class WorldRenderer {
             }
 
             drawWeaponOverlay(p);
+
+            // Reset color for next items (like health bars if they existed or other players)
+            batch.setColor(Color.WHITE);
         }
     }
 
