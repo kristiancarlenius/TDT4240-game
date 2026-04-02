@@ -81,9 +81,17 @@ public final class WorldRenderer {
         MapDto    map = worldState.getMap();
         PlayerDto me  = worldState.getLocalPlayer();
         if (me == null || me.pos == null || map == null) return;
-        float halfH = 9f;
-        float camY  = Math.max(halfH, Math.min(map.height - halfH, me.pos.y));
-        camera.position.set(map.width / 2f, camY, 0);
+        float halfW = camera.viewportWidth * 0.5f;
+        float halfH = camera.viewportHeight * 0.5f;
+
+        float camX = (map.width <= camera.viewportWidth)
+            ? map.width * 0.5f
+            : Math.max(halfW, Math.min(map.width - halfW, me.pos.x));
+        float camY = (map.height <= camera.viewportHeight)
+            ? map.height * 0.5f
+            : Math.max(halfH, Math.min(map.height - halfH, me.pos.y));
+
+        camera.position.set(camX, camY, 0);
         camera.update();
     }
 
@@ -248,8 +256,14 @@ public final class WorldRenderer {
             boolean isMe = localId != null && localId.equals(p.playerId);
             Texture tx = isMe ? playerLocalTex : playerEnemyTex;
             if (tx != null) continue;
-            shapes.setColor(isMe ? new Color(0.20f, 0.85f, 0.20f, 1f)
-                                 : new Color(0.85f, 0.20f, 0.20f, 1f));
+
+            if (p.isHurt) {
+                shapes.setColor(1.0f, 1.0f, 1.0f, 1f); // flash white
+            } else {
+                shapes.setColor(isMe ? new Color(0.20f, 0.85f, 0.20f, 1f)
+                        : new Color(0.85f, 0.20f, 0.20f, 1f));
+            }
+
             shapes.circle(p.pos.x, p.pos.y, 0.50f, 16);
             if (p.facing != null) {
                 shapes.setColor(0.95f, 0.95f, 0.95f, 1f);
@@ -264,6 +278,12 @@ public final class WorldRenderer {
         String localId = worldState.getLocalPlayerId();
         for (PlayerDto p : snap.players) {
             if (p.pos == null || p.isDead) continue;
+
+            if (p.isHurt) {
+                batch.setColor(1f, 0.3f, 0.3f, 1f); // Tint red-ish when hurt
+            } else {
+                batch.setColor(Color.WHITE);
+            }
 
             if (overheadTex != null) {
                 // PNG faces up → rotate to facing direction (same math as projectiles)
@@ -294,6 +314,9 @@ public final class WorldRenderer {
             }
 
             drawWeaponOverlay(p);
+
+            // Reset color for next items (like health bars if they existed or other players)
+            batch.setColor(Color.WHITE);
         }
     }
 

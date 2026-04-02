@@ -43,6 +43,9 @@ public final class PlayerDto {
     /** Current max HP (100 + healthTier * 10). */
     public float maxHp;
 
+    /** True if the player recently took damage (for visual feedback). */
+    public boolean isHurt;
+
     public PlayerDto() {}
 
     public PlayerDto(String playerId, String username, Vec2 pos, Vec2 vel, Vec2 facing,

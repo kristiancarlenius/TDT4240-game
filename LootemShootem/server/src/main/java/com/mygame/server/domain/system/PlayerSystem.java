@@ -6,6 +6,7 @@ import com.mygame.server.domain.model.ServerGameState;
 public final class PlayerSystem {
 
     private static final float RESPAWN_SECONDS = 5f;
+    private static final float HURT_DURATION = 0.15f;
 
     private final ServerGameState state;
 
@@ -21,6 +22,9 @@ public final class PlayerSystem {
                     respawnPlayer(p);
                 }
             }
+            if (p.hurtTimer > 0f) {
+                p.hurtTimer -= dt;
+            }
         }
     }
 
@@ -28,6 +32,7 @@ public final class PlayerSystem {
         if (victim.isDead) return;
 
         victim.hp = Math.max(0f, victim.hp - amount);
+        victim.hurtTimer = HURT_DURATION;
 
         if (victim.hp <= 0f) {
             handleDeath(victim, attackerId);
@@ -55,5 +60,6 @@ public final class PlayerSystem {
         // Reset other states if needed, like ammo or temporary boosts
         p.speedBoostTimer = 0f;
         p.moveSpeed = PlayerState.BASE_MOVE_SPEED;
+        p.hurtTimer = 0f;
     }
 }

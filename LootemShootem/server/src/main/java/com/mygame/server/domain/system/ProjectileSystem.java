@@ -8,6 +8,7 @@ import com.mygame.shared.util.Vec2;
 /**
  * Moves all projectiles, removes expired / wall-blocked ones,
  * and notifies PlayerSystem on player hit.
+ * Uses sub-stepping for collision to prevent "tunneling" through enemies at high speeds.
  */
 public final class ProjectileSystem {
 
@@ -29,18 +30,33 @@ public final class ProjectileSystem {
                 continue;
             }
 
-            Vec2 newPos = new Vec2(pr.pos.x + pr.vel.x * dt, pr.pos.y + pr.vel.y * dt);
-            if (state.isProjectileBlockedWorld(newPos.x, newPos.y)) {
-                state.projectiles.remove(i);
-                continue;
-            }
-            pr.pos = newPos;
+            // Sub-stepping checks multiple points along the path.
+            int steps = (int) Math.ceil(Math.sqrt(pr.vel.x * pr.vel.x + pr.vel.y * pr.vel.y) * dt / 0.2f);
+            steps = Math.max(1, steps);
+            
+            float stepDt = dt / steps;
+            boolean hitFound = false;
 
-            PlayerState hit = findHit(pr);
-            if (hit != null) {
-                playerSystem.takeDamage(hit, pr.damage, pr.ownerPlayerId);
-                state.projectiles.remove(i);
+            for (int s = 0; s < steps; s++) {
+                Vec2 nextSubPos = new Vec2(pr.pos.x + pr.vel.x * stepDt, pr.pos.y + pr.vel.y * stepDt);
+                
+                if (state.isProjectileBlockedWorld(nextSubPos.x, nextSubPos.y)) {
+                    state.projectiles.remove(i);
+                    hitFound = true;
+                    break;
+                }
+                
+                pr.pos = nextSubPos;
+                PlayerState hit = findHit(pr);
+                if (hit != null) {
+                    playerSystem.takeDamage(hit, pr.damage, pr.ownerPlayerId);
+                    state.projectiles.remove(i);
+                    hitFound = true;
+                    break;
+                }
             }
+
+            if (hitFound) continue;
         }
     }
 
