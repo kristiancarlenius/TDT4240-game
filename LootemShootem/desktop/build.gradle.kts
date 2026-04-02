@@ -28,4 +28,7 @@ java {
 // Point the run task at the shared assets folder so textures are found.
 tasks.named<JavaExec>("run") {
     workingDir = rootProject.file("assets")
+    if (System.getProperty("os.name").lowercase().contains("mac")) {
+        jvmArgs("-XstartOnFirstThread")
+    }
 }

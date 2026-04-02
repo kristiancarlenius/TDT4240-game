@@ -35,33 +35,35 @@ public final class PickupSpawnSystem {
         this.weaponRegistry = weaponRegistry;
     }
 
-    public void update() {
+    /** @param currentTick used to skip immune pickups (anti weapon-swap loop). */
+    public void update(long currentTick) {
         for (PlayerState p : state.players.values()) {
-            if (!p.isDead) collectPickups(p);
+            if (!p.isDead) collectPickups(p, currentTick);
         }
     }
 
     // ── Collection ───────────────────────────────────────────────────────────
 
-    private void collectPickups(PlayerState p) {
+    private void collectPickups(PlayerState p, long currentTick) {
         state.pickups.removeIf(pickup -> {
             if (pickup.pos == null) return true;
+            if (pickup.immuneUntilTick > currentTick) return false;
             float dx = p.pos.x - pickup.pos.x;
             float dy = p.pos.y - pickup.pos.y;
             if (dx * dx + dy * dy > COLLECT_RADIUS_SQ) return false;
-            applyPickup(p, pickup);
+            applyPickup(p, pickup, currentTick);
             return true;
         });
     }
 
     // ── Pickup application ────────────────────────────────────────────────────
 
-    private void applyPickup(PlayerState p, PickupState pickup) {
+    private void applyPickup(PlayerState p, PickupState pickup, long currentTick) {
         switch (pickup.type) {
-            case HEALTH: applyHealth(p, pickup); break;
-            case SPEED:  applySpeed(p);          break;
-            case WEAPON: applyWeapon(p, pickup);  break;
-            case AMMO:   applyAmmo(p);            break;
+            case HEALTH: applyHealth(p, pickup);          break;
+            case SPEED:  applySpeed(p);                   break;
+            case WEAPON: applyWeapon(p, pickup, currentTick); break;
+            case AMMO:   applyAmmo(p);                    break;
         }
         System.out.println("[PICKUP] " + p.username + " collected " + pickup.type);
     }
@@ -72,13 +74,14 @@ public final class PickupSpawnSystem {
         if (wouldHeal < 20f && p.healthTier < PlayerState.MAX_HEALTH_TIER) {
             p.healthTier++;
             p.maxHp += 10f;
-            p.hp     = Math.min(p.maxHp, p.hp + wouldHeal);
+            p.hp     = p.maxHp; // fill to new max immediately
             p.lastPickupNotice = "Max HP +" + 10 + "  (now " + (int) p.maxHp + ")";
         } else {
             int healed = (int) Math.min(Math.max(pickup.healthAmount, 25f), missing);
             p.hp = Math.min(p.maxHp, p.hp + healed);
             p.lastPickupNotice = "HP +" + healed;
         }
+        p.healTimer = 0.6f;
     }
 
     private void applySpeed(PlayerState p) {
@@ -99,7 +102,7 @@ public final class PickupSpawnSystem {
      *  2. Secondary slot empty → fill it silently.
      *  3. Both full → replace equipped; old weapon drops to ground.
      */
-    private void applyWeapon(PlayerState p, PickupState pickup) {
+    private void applyWeapon(PlayerState p, PickupState pickup, long currentTick) {
         WeaponType incoming = pickup.weaponType;
         if (incoming == null) return;
 
@@ -136,10 +139,12 @@ public final class PickupSpawnSystem {
         p.reloadTimer               = 0f;
         p.syncEquipped();
 
+        // Immunity of 20 ticks (1s at 20Hz) prevents the player from immediately
+        // re-collecting the weapon they just dropped, breaking the infinite-loop bug.
         state.pickups.add(new PickupState(
                 UUID.randomUUID().toString(), PickupType.WEAPON,
                 new Vec2(p.pos.x, p.pos.y),
-                0, 0f, dropped, droppedAmmo, droppedMags));
+                0, 0f, dropped, droppedAmmo, droppedMags, currentTick + 20));
 
         p.lastPickupNotice = "Swapped to " + incoming.name()
                 + " (dropped " + (dropped != null ? dropped.name() : "") + ")";

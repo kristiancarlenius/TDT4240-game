@@ -46,7 +46,7 @@ public final class ServerWorldStepSystem {
         for (PlayerState p : state.players.values()) p.lastPickupNotice = null;
 
         chestSystem.update(dt);
-        pickupSpawnSystem.update();
+        pickupSpawnSystem.update(state.tick);
         playerSystem.update(dt);
 
         for (PlayerState p : state.players.values()) {
