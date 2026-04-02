@@ -81,9 +81,17 @@ public final class WorldRenderer {
         MapDto    map = worldState.getMap();
         PlayerDto me  = worldState.getLocalPlayer();
         if (me == null || me.pos == null || map == null) return;
-        float halfH = 9f;
-        float camY  = Math.max(halfH, Math.min(map.height - halfH, me.pos.y));
-        camera.position.set(map.width / 2f, camY, 0);
+        float halfW = camera.viewportWidth * 0.5f;
+        float halfH = camera.viewportHeight * 0.5f;
+
+        float camX = (map.width <= camera.viewportWidth)
+            ? map.width * 0.5f
+            : Math.max(halfW, Math.min(map.width - halfW, me.pos.x));
+        float camY = (map.height <= camera.viewportHeight)
+            ? map.height * 0.5f
+            : Math.max(halfH, Math.min(map.height - halfH, me.pos.y));
+
+        camera.position.set(camX, camY, 0);
         camera.update();
     }
 
