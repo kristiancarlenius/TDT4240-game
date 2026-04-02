@@ -16,16 +16,24 @@ public final class PickupState {
     public final WeaponType weaponType;   // null for non-weapon pickups
     public final int        ammoAmount;
     public final int        magsAmount;   // spare magazines bundled with weapon drop
+    /** Ticks during which this pickup cannot be collected (anti-loop immunity). */
+    public final long       immuneUntilTick;
 
     public PickupState(String id, PickupType type, Vec2 pos,
                        int healthAmount, float speedBoostSeconds,
                        WeaponType weaponType, int ammoAmount) {
-        this(id, type, pos, healthAmount, speedBoostSeconds, weaponType, ammoAmount, 0);
+        this(id, type, pos, healthAmount, speedBoostSeconds, weaponType, ammoAmount, 0, 0L);
     }
 
     public PickupState(String id, PickupType type, Vec2 pos,
                        int healthAmount, float speedBoostSeconds,
                        WeaponType weaponType, int ammoAmount, int magsAmount) {
+        this(id, type, pos, healthAmount, speedBoostSeconds, weaponType, ammoAmount, magsAmount, 0L);
+    }
+
+    public PickupState(String id, PickupType type, Vec2 pos,
+                       int healthAmount, float speedBoostSeconds,
+                       WeaponType weaponType, int ammoAmount, int magsAmount, long immuneUntilTick) {
         this.id                = id;
         this.type              = type;
         this.pos               = pos;
@@ -34,6 +42,7 @@ public final class PickupState {
         this.weaponType        = weaponType;
         this.ammoAmount        = ammoAmount;
         this.magsAmount        = magsAmount;
+        this.immuneUntilTick   = immuneUntilTick;
     }
 
     public PickupDto toDto() {

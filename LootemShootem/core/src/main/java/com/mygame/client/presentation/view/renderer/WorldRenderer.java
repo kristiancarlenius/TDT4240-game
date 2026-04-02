@@ -12,6 +12,7 @@ import com.mygame.shared.dto.*;
 import com.mygame.shared.dto.ChestDto;
 
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -48,6 +49,11 @@ public final class WorldRenderer {
     private Texture projArrowTex;
     private Texture projFlameTex;
 
+    /** Accumulated time used for heal pulse animation. */
+    private float time = 0f;
+    /** Per-player heal flash timer tracked locally (avoids serialization issues). */
+    private final Map<String, Float> healTimers = new HashMap<>();
+
     public WorldRenderer(WorldState worldState,
                          OrthographicCamera camera,
                          ShapeRenderer shapes,
@@ -81,15 +87,24 @@ public final class WorldRenderer {
         MapDto    map = worldState.getMap();
         PlayerDto me  = worldState.getLocalPlayer();
         if (me == null || me.pos == null || map == null) return;
-        float halfH = 9f;
-        float camY  = Math.max(halfH, Math.min(map.height - halfH, me.pos.y));
-        camera.position.set(map.width / 2f, camY, 0);
+        float halfW = camera.viewportWidth * 0.5f;
+        float halfH = camera.viewportHeight * 0.5f;
+
+        float camX = (map.width <= camera.viewportWidth)
+            ? map.width * 0.5f
+            : Math.max(halfW, Math.min(map.width - halfW, me.pos.x));
+        float camY = (map.height <= camera.viewportHeight)
+            ? map.height * 0.5f
+            : Math.max(halfH, Math.min(map.height - halfH, me.pos.y));
+
+        camera.position.set(camX, camY, 0);
         camera.update();
     }
 
     // ---- Render ----
 
     public void render() {
+        time += Gdx.graphics.getDeltaTime();
         MapDto          map  = worldState.getMap();
         GameSnapshotDto snap = worldState.getSnapshot();
 
@@ -250,7 +265,10 @@ public final class WorldRenderer {
             if (tx != null) continue;
 
             if (p.isHurt) {
-                shapes.setColor(1.0f, 1.0f, 1.0f, 1f); // flash white
+                shapes.setColor(1.0f, 0.3f, 0.3f, 1f); // flash red
+            } else if (p.isHealed) {
+                boolean flashOn = ((int)(time * 16f) % 2) == 0;
+                shapes.setColor(flashOn ? new Color(1f, 1f, 0f, 1f) : new Color(0f, 1f, 1f, 1f));
             } else {
                 shapes.setColor(isMe ? new Color(0.20f, 0.85f, 0.20f, 1f)
                         : new Color(0.85f, 0.20f, 0.20f, 1f));
@@ -267,12 +285,23 @@ public final class WorldRenderer {
     }
 
     private void drawPlayersSprites(GameSnapshotDto snap) {
+        float dt = Gdx.graphics.getDeltaTime();
         String localId = worldState.getLocalPlayerId();
         for (PlayerDto p : snap.players) {
             if (p.pos == null || p.isDead) continue;
 
+            // Trigger heal animation via lastPickupNotice (reliable, already used by toast)
+            if (p.lastPickupNotice != null && p.lastPickupNotice.contains("HP")) {
+                healTimers.put(p.playerId, 0.6f);
+            }
+            float healLeft = Math.max(0f, healTimers.getOrDefault(p.playerId, 0f) - dt);
+            healTimers.put(p.playerId, healLeft);
+
             if (p.isHurt) {
-                batch.setColor(1f, 0.3f, 0.3f, 1f); // Tint red-ish when hurt
+                batch.setColor(1f, 0.3f, 0.3f, 1f);
+            } else if (healLeft > 0f) {
+                boolean flashOn = ((int)(time * 16f) % 2) == 0;
+                batch.setColor(flashOn ? new Color(1f, 1f, 0f, 1f) : new Color(0f, 1f, 1f, 1f));
             } else {
                 batch.setColor(Color.WHITE);
             }

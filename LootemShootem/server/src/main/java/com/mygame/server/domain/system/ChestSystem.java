@@ -120,8 +120,7 @@ public final class ChestSystem {
         if (wouldHeal < 20f && p.healthTier < PlayerState.MAX_HEALTH_TIER) {
             p.healthTier++;
             p.maxHp += 10f;
-            // Also top up to new ceiling
-            p.hp = Math.min(p.maxHp, p.hp + wouldHeal);
+            p.hp = p.maxHp; // fill to new max immediately
             p.lastPickupNotice = "Max HP +" + 10 + "  (now " + (int) p.maxHp + ")";
         } else {
             p.hp = Math.min(p.maxHp, p.hp + 50f);
