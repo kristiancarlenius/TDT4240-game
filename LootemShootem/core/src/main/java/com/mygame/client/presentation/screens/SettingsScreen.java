@@ -35,7 +35,7 @@ public final class SettingsScreen implements Screen {
     private static final int   BTN_H   = 46;
     private static final int   ROW_W   = 380;
     private static final int   ROW_H   = 46;
-    private static final float ROW_GAP = 60f;
+    private static final float ROW_GAP = 75f;
 
     private final Navigator navigator;
     private final String    serverUrl;
@@ -70,9 +70,9 @@ public final class SettingsScreen implements Screen {
             int worldY = sh - screenY;
 
             // Toggle sound button
-            int toggleW = 300, toggleH = 50;
+            int toggleW = 360, toggleH = 50;
             int toggleX = (sw - toggleW) / 2;
-            int toggleY = sh / 2 + 160;
+            int toggleY = (int)(sh * 0.74f);
             if (screenX >= toggleX && screenX <= toggleX + toggleW
                     && worldY >= toggleY && worldY <= toggleY + toggleH) {
                 prefs.setSoundEnabled(!prefs.isSoundEnabled());
@@ -80,9 +80,9 @@ public final class SettingsScreen implements Screen {
             }
 
             // Toggle controls button
-            int ctrlW = 300, ctrlH = 50;
+            int ctrlW = 360, ctrlH = 50;
             int ctrlX = (sw - ctrlW) / 2;
-            int ctrlY = sh / 2 + 90;
+            int ctrlY = (int)(sh * 0.62f);
             if (screenX >= ctrlX && screenX <= ctrlX + ctrlW
                     && worldY >= ctrlY && worldY <= ctrlY + ctrlH) {
                 prefs.setControlsSwapped(!prefs.isControlsSwapped());
@@ -153,18 +153,18 @@ public final class SettingsScreen implements Screen {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
 
         // Toggle sound button background
-        int toggleW = 300, toggleH = 50;
+        int toggleW = 360, toggleH = 50;
         int toggleX = (sw - toggleW) / 2;
-        int toggleY = sh / 2 + 160;
+        int toggleY = (int)(sh * 0.74f);
         shapes.setColor(prefs.isSoundEnabled() ? 0.2f : 0.4f,
                         prefs.isSoundEnabled() ? 0.6f : 0.2f,
                         0.2f, 1f);
         shapes.rect(toggleX, toggleY, toggleW, toggleH);
 
         // Toggle controls button background
-        int ctrlW = 300, ctrlH = 50;
+        int ctrlW = 360, ctrlH = 50;
         int ctrlX = (sw - ctrlW) / 2;
-        int ctrlY = sh / 2 + 90;
+        int ctrlY = (int)(sh * 0.62f);
         shapes.setColor(0.3f, 0.4f, 0.5f, 1f);
         shapes.rect(ctrlX, ctrlY, ctrlW, ctrlH);
 
@@ -210,7 +210,7 @@ public final class SettingsScreen implements Screen {
         String sub = "HUD LAYOUT  •  tap widget to cycle";
         layout.setText(font, sub);
         font.getData().setScale(1.1f);
-        font.draw(batch, sub, (sw - layout.width) / 2f, sh / 2f + 72f);
+        font.draw(batch, sub, (sw - layout.width) / 2f, sh * 0.535f);
         font.getData().setScale(1.5f);
 
         // Slot rows
@@ -295,17 +295,16 @@ public final class SettingsScreen implements Screen {
     // ── Positioning helpers ───────────────────────────────────────────────────
 
     private int rowY(HudSlot slot, int sh) {
-        int centerY = sh / 2 - 10;
         switch (slot) {
-            case TOP_LEFT:   return centerY + (int) ROW_GAP;
-            case TOP_CENTER: return centerY;
-            case TOP_RIGHT:  return centerY - (int) ROW_GAP;
-            default:         return centerY;
+            case TOP_LEFT:   return (int)(sh * 0.44f);
+            case TOP_CENTER: return (int)(sh * 0.33f);
+            case TOP_RIGHT:  return (int)(sh * 0.22f);
+            default:         return (int)(sh * 0.33f);
         }
     }
 
     private int backBtnY(int sh) {
-        return sh / 2 - 180;
+        return (int)(sh * 0.08f);
     }
 
     private static String slotLabel(HudSlot slot) {

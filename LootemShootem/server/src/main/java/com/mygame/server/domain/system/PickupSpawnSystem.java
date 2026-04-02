@@ -74,13 +74,14 @@ public final class PickupSpawnSystem {
         if (wouldHeal < 20f && p.healthTier < PlayerState.MAX_HEALTH_TIER) {
             p.healthTier++;
             p.maxHp += 10f;
-            p.hp     = Math.min(p.maxHp, p.hp + wouldHeal);
+            p.hp     = p.maxHp; // fill to new max immediately
             p.lastPickupNotice = "Max HP +" + 10 + "  (now " + (int) p.maxHp + ")";
         } else {
             int healed = (int) Math.min(Math.max(pickup.healthAmount, 25f), missing);
             p.hp = Math.min(p.maxHp, p.hp + healed);
             p.lastPickupNotice = "HP +" + healed;
         }
+        p.healTimer = 0.6f;
     }
 
     private void applySpeed(PlayerState p) {

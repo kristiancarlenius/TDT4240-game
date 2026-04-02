@@ -1,6 +1,7 @@
 package com.mygame.client.presentation.view.renderer;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -41,6 +42,18 @@ public final class HudRenderer {
 
     private String pickupToast;
     private float  pickupToastTimer;
+
+    // ── Leaderboard mode cycling ─────────────────────────────────────────────
+    /** 0 = kills session, 1 = kills this life, 2 = total score (kills + minutes). */
+    private int   leaderboardMode     = 0;
+    private static final int LB_MODES = 3;
+    /** Tracks touch to avoid repeated cycling on a held tap. */
+    private boolean lbTouchConsumed   = false;
+
+    // ── Heal flash ───────────────────────────────────────────────────────────
+    private float prevHp          = -1f;
+    private float healFlashTimer  = 0f;
+    private static final float HEAL_FLASH_DURATION = 0.5f;
 
     public HudRenderer(WorldState worldState,
                        InputHandler inputHandler,
@@ -87,6 +100,39 @@ public final class HudRenderer {
         }
 
         if (pickupToastTimer > 0f) pickupToastTimer -= delta;
+
+        // ── Leaderboard mode: Tab on desktop, tap on leaderboard header on mobile ──
+        if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
+            leaderboardMode = (leaderboardMode + 1) % LB_MODES;
+        }
+        if (Gdx.input.justTouched()) {
+            int tx = Gdx.input.getX();
+            int ty = Gdx.graphics.getHeight() - Gdx.input.getY();
+            int sw = Gdx.graphics.getWidth();
+            int sh = Gdx.graphics.getHeight();
+            // Tap zone: top-right corner (leaderboard area)
+            if (tx > sw * 0.6f && ty > sh * 0.82f) {
+                if (!lbTouchConsumed) {
+                    leaderboardMode = (leaderboardMode + 1) % LB_MODES;
+                    lbTouchConsumed = true;
+                }
+            } else {
+                lbTouchConsumed = false;
+            }
+        } else if (!Gdx.input.isTouched()) {
+            lbTouchConsumed = false;
+        }
+
+        // ── Heal flash detection ─────────────────────────────────────────────
+        if (me != null && !me.isDead) {
+            if (prevHp >= 0f && (me.hp - prevHp > 5f || me.isHealed)) {
+                healFlashTimer = HEAL_FLASH_DURATION;
+            }
+            prevHp = me.hp;
+        } else {
+            prevHp = -1f;
+        }
+        if (healFlashTimer > 0f) healFlashTimer -= delta;
 
         if (snap == null || me == null) {
             drawConnecting();
@@ -140,6 +186,19 @@ public final class HudRenderer {
         }
 
         shapes.end();
+
+        // Heal flash — green pulsing border around HP bar (needs blending)
+        if (healFlashTimer > 0f) {
+            float alpha = Math.min(1f, healFlashTimer / HEAL_FLASH_DURATION);
+            float pulse = (float) Math.abs(Math.sin(healFlashTimer * Math.PI * 4));
+            Gdx.gl.glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            shapes.setProjectionMatrix(screenProj);
+            shapes.begin(ShapeRenderer.ShapeType.Filled);
+            shapes.setColor(0.10f, 0.90f, 0.30f, alpha * pulse);
+            shapes.rect(BAR_X - 3, BAR_Y - 3, BAR_W + 6, BAR_H + 6);
+            shapes.end();
+        }
     }
 
     // ── Player info — bottom-left (weapon info, HP number inside bar) ────────
@@ -251,22 +310,40 @@ public final class HudRenderer {
         font.draw(batch, text, slotX(slot, layout.width, sw), sh - 20f);
     }
 
-    // ── Leaderboard (top LEADERBOARD_ROWS + current player always shown) ──────
+    // ── Leaderboard (3 modes, Tab / tap to cycle) ────────────────────────────
 
     private void drawLeaderboardInSlot(GameSnapshotDto snap, HudSlot slot, int sw, int sh) {
         if (snap == null || snap.players == null || snap.players.length == 0) return;
 
         String localId = worldState.getLocalPlayerId();
 
+        // Determine comparator and value extractor per mode
+        Comparator<PlayerDto> cmp;
+        String modeLabel;
+        switch (leaderboardMode) {
+            case 1:
+                cmp       = Comparator.comparingInt((PlayerDto p) -> p.killsThisLife);
+                modeLabel = "KILLS THIS LIFE";
+                break;
+            case 2:
+                cmp       = Comparator.comparingInt((PlayerDto p) -> p.score + (int)(p.timeSurvived / 60f));
+                modeLabel = "TOTAL SCORE";
+                break;
+            default:
+                cmp       = Comparator.comparingInt((PlayerDto p) -> p.score);
+                modeLabel = "KILLS SESSION";
+                break;
+        }
+
         List<PlayerDto> sorted = new ArrayList<>();
         for (PlayerDto p : snap.players) sorted.add(p);
-        sorted.sort(Comparator.comparingInt((PlayerDto p) -> p.score).reversed());
+        sorted.sort(cmp.reversed());
 
         float y    = sh - 20f;
         float rowH = 20f;
 
-        // Header
-        String header = "── LEADERBOARD ──";
+        // Header with mode label and cycle hint
+        String header = modeLabel + " [TAB]";
         font.setColor(0.80f, 0.80f, 0.80f, 1f);
         layout.setText(font, header);
         font.draw(batch, header, slotX(slot, layout.width, sw), y);
@@ -279,8 +356,9 @@ public final class HudRenderer {
             if (shown >= LEADERBOARD_ROWS) break;
             boolean isMe = localId != null && localId.equals(p.playerId);
             if (isMe) localInTop = true;
+            int value = lbValue(p);
             font.setColor(isMe ? new Color(0.20f, 0.95f, 0.30f, 1f) : Color.LIGHT_GRAY);
-            String line = (shown + 1) + ".  " + p.username + ":  " + p.score + " kills";
+            String line = (shown + 1) + ".  " + p.username + ":  " + value;
             layout.setText(font, line);
             font.draw(batch, line, slotX(slot, layout.width, sw), y);
             y -= rowH;
@@ -302,10 +380,18 @@ public final class HudRenderer {
                 y -= rowH;
 
                 font.setColor(new Color(0.20f, 0.95f, 0.30f, 1f));
-                String line = rank + ".  " + myEntry.username + ":  " + myEntry.score + " kills";
+                String line = rank + ".  " + myEntry.username + ":  " + lbValue(myEntry);
                 layout.setText(font, line);
                 font.draw(batch, line, slotX(slot, layout.width, sw), y);
             }
+        }
+    }
+
+    private int lbValue(PlayerDto p) {
+        switch (leaderboardMode) {
+            case 1:  return p.killsThisLife;
+            case 2:  return p.score * 10 + (int)(p.timeSurvived / 10f);
+            default: return p.score;
         }
     }
 

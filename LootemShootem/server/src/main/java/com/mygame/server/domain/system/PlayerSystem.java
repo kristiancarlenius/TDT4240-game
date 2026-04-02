@@ -22,9 +22,8 @@ public final class PlayerSystem {
                     respawnPlayer(p);
                 }
             }
-            if (p.hurtTimer > 0f) {
-                p.hurtTimer -= dt;
-            }
+            if (p.hurtTimer > 0f) p.hurtTimer -= dt;
+            if (p.healTimer > 0f) p.healTimer -= dt;
         }
     }
 
@@ -47,6 +46,7 @@ public final class PlayerSystem {
         PlayerState killer = state.players.get(attackerId);
         if (killer != null) {
             killer.score++;
+            killer.killsThisLife++;
             String msg = killer.username + " killed " + victim.username;
             state.killFeedQueue.add(msg);
             System.out.println("[GAME] " + msg);
@@ -57,9 +57,9 @@ public final class PlayerSystem {
         p.isDead = false;
         p.hp = 100f;
         p.pos = state.findNextSpawn();
-        // Reset other states if needed, like ammo or temporary boosts
         p.speedBoostTimer = 0f;
         p.moveSpeed = PlayerState.BASE_MOVE_SPEED;
         p.hurtTimer = 0f;
+        p.killsThisLife = 0;
     }
 }
