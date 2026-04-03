@@ -4,6 +4,9 @@ import com.mygame.server.application.service.MatchService;
 import com.mygame.server.application.service.TickService;
 import com.mygame.server.application.usecase.*;
 import com.mygame.server.config.ServerConfig;
+import com.mygame.server.data.map.MapProvider;
+import com.mygame.server.data.map.procedural.ProceduralMapProvider;
+import com.mygame.server.domain.ports.MapProviderPort;
 import com.mygame.server.presentation.websocket.GameWebSocketServer;
 import com.mygame.server.util.RateLimiter;
 
@@ -15,7 +18,10 @@ public final class ServerMain {
         ServerConfig config = ServerConfig.load();
 
         // Domain
-        MatchService matchService = new MatchService();
+        MapProviderPort mapProvider = "procedural".equals(config.mapMode)
+            ? new ProceduralMapProvider(config.mapSeed)
+            : new MapProvider();
+        MatchService matchService = new MatchService(mapProvider, config.mapId);
 
         // Rate limiter: allow up to 60 inputs/second per player
         RateLimiter rateLimiter = new RateLimiter(60);

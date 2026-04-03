@@ -13,11 +13,17 @@ public final class ServerConfig {
     public final int port;
     public final int tickHz;
     public final int maxPlayers;
+    public final String mapMode;
+    public final String mapId;
+    public final long mapSeed;
 
-    private ServerConfig(int port, int tickHz, int maxPlayers) {
+    private ServerConfig(int port, int tickHz, int maxPlayers, String mapMode, String mapId, long mapSeed) {
         this.port       = port;
         this.tickHz     = tickHz;
         this.maxPlayers = maxPlayers;
+        this.mapMode    = mapMode;
+        this.mapId      = mapId;
+        this.mapSeed    = mapSeed;
     }
 
     public static ServerConfig load() {
@@ -36,9 +42,15 @@ public final class ServerConfig {
         int port       = Integer.parseInt(props.getProperty("port",       "8080"));
         int tickHz     = Integer.parseInt(props.getProperty("tickHz",     "30"));
         int maxPlayers = Integer.parseInt(props.getProperty("maxPlayers", "8"));
+        String mapMode = props.getProperty("mapMode", "static").trim().toLowerCase();
+        String mapId = props.getProperty("mapId", "map01").trim();
+        long mapSeed = Long.parseLong(props.getProperty("mapSeed", "4240"));
 
         System.out.println("[CONFIG] port=" + port + "  tickHz=" + tickHz
-                + "  maxPlayers=" + maxPlayers);
-        return new ServerConfig(port, tickHz, maxPlayers);
+            + "  maxPlayers=" + maxPlayers
+            + "  mapMode=" + mapMode
+            + "  mapId=" + mapId
+            + "  mapSeed=" + mapSeed);
+        return new ServerConfig(port, tickHz, maxPlayers, mapMode, mapId, mapSeed);
     }
 }

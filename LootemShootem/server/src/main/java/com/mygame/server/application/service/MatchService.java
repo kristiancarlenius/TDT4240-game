@@ -6,6 +6,7 @@ import com.mygame.server.data.weapon.WeaponRegistry;
 import com.mygame.server.domain.model.PlayerState;
 import com.mygame.server.domain.model.ServerGameState;
 import com.mygame.server.domain.model.WeaponSpec;
+import com.mygame.server.domain.ports.MapProviderPort;
 import com.mygame.server.domain.system.*;
 import com.mygame.shared.dto.*;
 import com.mygame.shared.protocol.messages.InputMessage;
@@ -26,7 +27,11 @@ public final class MatchService {
     private final Map<String, InputMessage> latestInput = new ConcurrentHashMap<>();
 
     public MatchService() {
-        this.state          = new MapProvider().provide("map01");
+        this(new MapProvider(), "map01");
+    }
+
+    public MatchService(MapProviderPort mapProvider, String mapId) {
+        this.state          = mapProvider.provide(mapId);
         this.weaponRegistry = loadWeapons("weapons/weapons.json");
 
         PlayerSystem      player     = new PlayerSystem(state);
