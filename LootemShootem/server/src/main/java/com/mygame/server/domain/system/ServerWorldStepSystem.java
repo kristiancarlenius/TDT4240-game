@@ -226,12 +226,18 @@ public final class ServerWorldStepSystem {
         float rd = spawnRightDist(p.equippedWeaponType);
         float rightOffX =  p.facing.y * rd;
         float rightOffY = -p.facing.x * rd;
-        float sx = p.pos.x + p.facing.x * 1.55f + rightOffX;
-        float sy = p.pos.y + p.facing.y * 1.55f + rightOffY;
-        int   pellets = Math.max(1, spec.pellets);
 
+        // Spawn distance is now closer to the player center (0.75 vs 1.55)
+        // to prevent shooting through walls/enemies. Hitbox is ~0.60.
+        float spawnDist = 0.75f;
+        float sx = p.pos.x + p.facing.x * spawnDist + rightOffX;
+        float sy = p.pos.y + p.facing.y * spawnDist + rightOffY;
+
+        // Don't spawn if already inside a wall
+        if (state.isProjectileBlockedWorld(sx, sy)) return;
+
+        int pellets = Math.max(1, spec.pellets);
         for (int k = 0; k < pellets; k++) {
-            // Velocity from facing direction only — never from player velocity.
             float fx = p.facing.x;
             float fy = p.facing.y;
 
