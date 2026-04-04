@@ -1,6 +1,7 @@
 package com.mygame.client.presentation.view.renderer;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
@@ -49,6 +50,9 @@ public final class WorldRenderer {
     private Texture projArrowTex;
     private Texture projFlameTex;
 
+    private Sound hurtSound;
+    private boolean wasLocalPlayerHurt = false;
+
     /** Accumulated time used for heal pulse animation. */
     private float time = 0f;
     /** Per-player heal flash timer tracked locally (avoids serialization issues). */
@@ -79,6 +83,7 @@ public final class WorldRenderer {
         if (projBulletTex  != null) projBulletTex.dispose();
         if (projArrowTex   != null) projArrowTex.dispose();
         if (projFlameTex   != null) projFlameTex.dispose();
+        if (hurtSound      != null) hurtSound.dispose();
     }
 
     // ---- Camera ----
@@ -135,6 +140,18 @@ public final class WorldRenderer {
         }
 
         batch.end();
+
+        updateAudio();
+    }
+
+    private void updateAudio() {
+        PlayerDto me = worldState.getLocalPlayer();
+        if (me != null && hurtSound != null) {
+            if (me.isHurt && !wasLocalPlayerHurt) {
+                hurtSound.play();
+            }
+            wasLocalPlayerHurt = me.isHurt;
+        }
     }
 
     // ── Map ──────────────────────────────────────────────────────────────────
@@ -477,6 +494,13 @@ public final class WorldRenderer {
         projBulletTex  = tryLoad("projectiles/bullet.png");
         projArrowTex   = tryLoad("projectiles/arrow.png");
         projFlameTex   = tryLoad("projectiles/flame.png");
+
+        try {
+            com.badlogic.gdx.files.FileHandle fh = Gdx.files.internal("sound\\damage_effect.mp3");
+            if (fh.exists()) {
+                hurtSound = Gdx.audio.newSound(fh);
+            }
+        } catch (Exception ignored) {}
     }
 
     /**

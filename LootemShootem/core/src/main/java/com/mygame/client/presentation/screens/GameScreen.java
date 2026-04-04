@@ -78,16 +78,21 @@ public final class GameScreen implements Screen {
 
         // --- Background Music ---
         try {
+            // Try the user's preferred path first, fallback to Rasputin if not found
             com.badlogic.gdx.files.FileHandle musicFile = Gdx.files.internal("Boney_M_Rasputin.ogg");
+            if (!musicFile.exists()) {
+                musicFile = Gdx.files.internal("sound/background_music.ogg");
+            }
+            
             if (musicFile.exists()) {
                 backgroundMusic = Gdx.audio.newMusic(musicFile);
                 backgroundMusic.setLooping(true);
                 backgroundMusic.setVolume(0.5f);
-                if (prefs.isSoundEnabled()) {
+                if (prefs.isMusicEnabled()) {
                     backgroundMusic.play();
                 }
             } else {
-                System.err.println("[AUDIO] Music file not found: Boney_M_Rasputin.ogg");
+                System.err.println("[AUDIO] Music file not found");
             }
         } catch (Exception e) {
             System.err.println("[AUDIO] Error loading music: " + e.getMessage());

@@ -12,6 +12,10 @@ public interface PreferencesPort {
 
     boolean isSoundEnabled();
     void setSoundEnabled(boolean enabled);
+
+    boolean isMusicEnabled();
+    void setMusicEnabled(boolean enabled);
+
     boolean isControlsSwapped();
     void setControlsSwapped(boolean swapped);
 }

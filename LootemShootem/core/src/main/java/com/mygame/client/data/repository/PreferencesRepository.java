@@ -12,6 +12,7 @@ public final class PreferencesRepository implements PreferencesPort {
     private static final String KEY_USERNAME        = "username";
     private static final String KEY_HUD             = "hud_slot_";
     private static final String KEY_SOUND_ENABLED   = "sound_enabled";
+    private static final String KEY_MUSIC_ENABLED   = "music_enabled";
     private static final String KEY_CONTROLS_SWAPPED = "controls_swapped";
 
     /** Default widget for each slot ordinal: LEFT→KILL_FEED, CENTER→TIME_ALIVE, RIGHT→LEADERBOARD */
@@ -63,6 +64,17 @@ public final class PreferencesRepository implements PreferencesPort {
     @Override
     public void setSoundEnabled(boolean enabled) {
         prefs.putBoolean(KEY_SOUND_ENABLED, enabled);
+        prefs.flush();
+    }
+
+    @Override
+    public boolean isMusicEnabled() {
+        return prefs.getBoolean(KEY_MUSIC_ENABLED, true);
+    }
+
+    @Override
+    public void setMusicEnabled(boolean enabled) {
+        prefs.putBoolean(KEY_MUSIC_ENABLED, enabled);
         prefs.flush();
     }
 
