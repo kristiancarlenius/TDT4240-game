@@ -4,13 +4,31 @@ import com.mygame.server.domain.model.proc.*;
 
 import java.util.*;
 
+/**
+ * Builds a dungeon room graph using a grid-based skeleton approach.
+ * Divides the playable area into a grid of room slot cells (based on skeleton spacing),
+ * creates a room node for each slot (except central area), and links adjacent rooms with border edges.
+ * Central room (if defined in spec) becomes a shared node spanning multiple slot cells.
+ */
 public final class GridSkeletonGraphBuilder implements SkeletonGraphBuilder {
 
+    /**
+     * Builds the map graph.
+     * 1. Create room ranges (grid cells) from spec spacing
+     * 2. Allocate nodes: standard rooms for each grid slot, central room if applicable
+     * 3. Create border edges: vertical and horizontal boundaries between adjacent rooms,
+     *    with span derived from room overlap
+     *
+     * @param spec map generation specification
+     * @return complete map graph with rooms and edges
+     */
     @Override
     public MapGraph build(MapGenerationSpec spec) {
+        // Step 1: Divide playable space into room ranges (grid cells).
         List<int[]> colRanges = buildRoomRanges(spec.playableWidth, spec.skeletonSpacingX);
         List<int[]> rowRanges = buildRoomRanges(spec.playableHeight, spec.skeletonSpacingY);
 
+        // Step 2: Create room nodes for each grid slot (standard rooms), excluding central area cells.
         String[][] cellNodeId = new String[rowRanges.size()][colRanges.size()];
         List<RoomNode> rooms = new ArrayList<>();
 
@@ -19,6 +37,7 @@ public final class GridSkeletonGraphBuilder implements SkeletonGraphBuilder {
             for (int col = 0; col < colRanges.size(); col++) {
                 int[] xr = colRanges.get(col);
                 int[] yr = rowRanges.get(row);
+                // Skip cells that belong to the central room area.
                 if (insideCentral(spec, xr[0], yr[0], xr[1], yr[1])) {
                     continue;
                 }
@@ -28,6 +47,8 @@ public final class GridSkeletonGraphBuilder implements SkeletonGraphBuilder {
             }
         }
 
+        // Step 3: Create central room (if applicable) spanning its designated area.
+        // All grid cells overlapping the central room become linked to the same central node.
         List<int[]> centralCells = new ArrayList<>();
         for (int row = 0; row < rowRanges.size(); row++) {
             for (int col = 0; col < colRanges.size(); col++) {
@@ -54,6 +75,7 @@ public final class GridSkeletonGraphBuilder implements SkeletonGraphBuilder {
             }
         }
 
+        // Step 4: Create border edges for adjacent distinct rooms.
         Map<String, RoomNode> roomById = new HashMap<>();
         for (RoomNode room : rooms) {
             roomById.put(room.id, room);
@@ -68,6 +90,7 @@ public final class GridSkeletonGraphBuilder implements SkeletonGraphBuilder {
                 if (here == null) {
                     continue;
                 }
+                // Check right neighbor (vertical border).
                 if (col + 1 < colRanges.size()) {
                     String right = cellNodeId[row][col + 1];
                     if (right != null && !here.equals(right)) {
@@ -79,6 +102,7 @@ public final class GridSkeletonGraphBuilder implements SkeletonGraphBuilder {
                         addEdge(edges, edgeKeys, here, right, BorderOrientation.VERTICAL, lineX, spanStart, spanEnd);
                     }
                 }
+                // Check top neighbor (horizontal border).
                 if (row + 1 < rowRanges.size()) {
                     String up = cellNodeId[row + 1][col];
                     if (up != null && !here.equals(up)) {
@@ -95,7 +119,12 @@ public final class GridSkeletonGraphBuilder implements SkeletonGraphBuilder {
 
         return new MapGraph(rooms, edges);
     }
+    }
 
+    /**
+     * Adds an edge with deduplication. Standardizes node order to avoid duplicate edges.
+     * Only adds if span is valid (start <= end).
+     */
     private static void addEdge(
             List<BorderEdge> edges,
             Set<String> edgeKeys,
@@ -117,6 +146,9 @@ public final class GridSkeletonGraphBuilder implements SkeletonGraphBuilder {
         edges.add(new BorderEdge("E_" + edges.size(), roomA, roomB, orientation, lineCoord, spanStart, spanEnd));
     }
 
+    /**
+     * Checks if a grid cell is entirely contained within the central room area.
+     */
     private static boolean insideCentral(MapGenerationSpec spec, int minX, int minY, int maxX, int maxY) {
         int cx2 = spec.centralStartX + spec.centralWidth - 1;
         int cy2 = spec.centralStartY + spec.centralHeight - 1;
@@ -126,6 +158,10 @@ public final class GridSkeletonGraphBuilder implements SkeletonGraphBuilder {
                 && maxY <= cy2;
     }
 
+    /**
+     * Builds evenly-spaced room ranges from a playable dimension and spacing.
+     * Each range represents one dimension of a room slot cell.
+     */
     private static List<int[]> buildRoomRanges(int playableSize, int skeletonSpacing) {
         List<int[]> ranges = new ArrayList<>();
         int start = 0;

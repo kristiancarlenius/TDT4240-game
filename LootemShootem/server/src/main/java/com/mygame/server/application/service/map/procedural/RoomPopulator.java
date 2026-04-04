@@ -3,9 +3,17 @@ package com.mygame.server.application.service.map.procedural;
 import com.mygame.server.domain.model.proc.*;
 import com.mygame.server.domain.ports.map.RoomTemplateCatalogPort;
 import com.mygame.shared.dto.TileType;
+import com.mygame.shared.util.Vec2;
 
 import java.util.*;
 
+/**
+ * Populates a tilemap by stamping room templates into their designated slots.
+ * For each room in the graph:
+ * 1. Selects a template variant matching the room dimensions
+ * 2. Stamps the template tiles into the world at the room's position
+ * 3. Collects chest spawn points from the template, transforming them to world coordinates
+ */
 public final class RoomPopulator {
 
     private final RoomTemplateCatalogPort catalog;
@@ -16,7 +24,8 @@ public final class RoomPopulator {
         this.roomGenerator = roomGenerator;
     }
 
-    public void populate(MapGraph graph, TileType[] worldTiles, int worldWidth, Random rng) {
+    public List<Vec2> populate(MapGraph graph, TileType[] worldTiles, int worldWidth, Random rng) {
+        List<Vec2> chestSpawnPoints = new ArrayList<>();
         for (RoomNode room : graph.rooms()) {
             List<RoomTemplate> templates = catalog.templatesFor(room.kind);
             RoomGenerationContext ctx = new RoomGenerationContext(room, graph.incidentEdges(room.id), rng);
@@ -26,11 +35,13 @@ public final class RoomPopulator {
             room.transform = selection.transform;
 
             RoomTemplate template = byId(templates, selection.templateId);
-            stampTemplate(room, template, selection.transform, worldTiles, worldWidth);
+            stampTemplate(room, template, selection.transform, worldTiles, worldWidth, chestSpawnPoints);
         }
+        return chestSpawnPoints;
     }
 
     private static RoomTemplate byId(List<RoomTemplate> templates, String id) {
+        // Finds a template by ID in the candidate list.
         for (RoomTemplate t : templates) {
             if (t.id.equals(id)) {
                 return t;
@@ -44,7 +55,8 @@ public final class RoomPopulator {
             RoomTemplate template,
             RoomTransform transform,
             TileType[] worldTiles,
-            int worldWidth) {
+            int worldWidth,
+            List<Vec2> chestSpawnPoints) {
 
         int roomWidth = room.width();
         int roomHeight = room.height();
@@ -64,6 +76,13 @@ public final class RoomPopulator {
                 int worldY = room.minY + y + 1;
                 worldTiles[worldY * worldWidth + worldX] = tile;
             }
+        }
+
+        for (int[] local : template.chestSpawnTiles) {
+            int[] source = sourceCoordFor(local[0], local[1], template.width, template.height, transform);
+            int worldX = room.minX + source[0] + 1;
+            int worldY = room.minY + source[1] + 1;
+            chestSpawnPoints.add(new Vec2(worldX + 0.5f, worldY + 0.5f));
         }
     }
 
