@@ -1,0 +1,25 @@
+{
+  "id": "template_standard_15x10 copy",
+  "width": 15,
+  "height": 10,
+  "legend": {
+    "W": "WALL",
+    "F": "FLOOR",
+    "N": "WINDOW",
+    "T": "TRAP",
+    "C": "COBWEB",
+    "H": "CHEST_SPAWN"
+  },
+  "rows": [
+    "FFFFFFFFFFFFFFF",
+    "FFFFFFFFFFFFFFF",
+    "FFFFFFFFFFFFFFF",
+    "FFFFFFFFFFFFFFF",
+    "FFFFFFFFFFFFFFF",
+    "FFFFFFFFFFFFFFF",
+    "FFFFFFFFFFFFFFF",
+    "FFFFFFFFFFFFFFF",
+    "FFFFFFFFFFFFFFF",
+    "FFFFFFFFFFFFFFF"
+  ]
+}
