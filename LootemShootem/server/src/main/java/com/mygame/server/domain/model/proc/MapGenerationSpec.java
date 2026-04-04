@@ -53,10 +53,10 @@ public final class MapGenerationSpec {
                 22,
                 31,
                 21,
-                0.25,
-                0.25,
-                0.25,
-                0.25);
+                0.15,
+                0.15,
+                0.30,
+                0.40);
     }
 
     public int worldWidth() {

@@ -119,7 +119,6 @@ public final class GridSkeletonGraphBuilder implements SkeletonGraphBuilder {
 
         return new MapGraph(rooms, edges);
     }
-    }
 
     /**
      * Adds an edge with deduplication. Standardizes node order to avoid duplicate edges.
