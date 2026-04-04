@@ -3,6 +3,7 @@ package com.mygame.client.presentation.screens;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -37,6 +38,8 @@ public final class GameScreen implements Screen {
     private SpriteBatch        batch;
     private BitmapFont         font;
     private BitmapFont         bigFont;
+
+    private Music backgroundMusic;
 
     public GameScreen(Navigator navigator, String serverUrl, String username) {
         this.navigator = navigator;
@@ -73,6 +76,23 @@ public final class GameScreen implements Screen {
         worldRenderer = new WorldRenderer(worldState, camera, shapes, batch);
         hudRenderer   = new HudRenderer(worldState, inputHandler, shapes, batch, font, bigFont, prefs);
 
+        // --- Background Music ---
+        try {
+            com.badlogic.gdx.files.FileHandle musicFile = Gdx.files.internal("Boney_M_Rasputin.ogg");
+            if (musicFile.exists()) {
+                backgroundMusic = Gdx.audio.newMusic(musicFile);
+                backgroundMusic.setLooping(true);
+                backgroundMusic.setVolume(0.5f);
+                if (prefs.isSoundEnabled()) {
+                    backgroundMusic.play();
+                }
+            } else {
+                System.err.println("[AUDIO] Music file not found: Boney_M_Rasputin.ogg");
+            }
+        } catch (Exception e) {
+            System.err.println("[AUDIO] Error loading music: " + e.getMessage());
+        }
+
         session.connect(serverUrl, username);
     }
 
@@ -104,6 +124,7 @@ public final class GameScreen implements Screen {
     @Override
     public void hide() {
         if (inputHandler != null) inputHandler.clearInputProcessor();
+        if (backgroundMusic != null) backgroundMusic.stop();
     }
 
     @Override
@@ -114,5 +135,6 @@ public final class GameScreen implements Screen {
         if (batch         != null) batch.dispose();
         if (font          != null) font.dispose();
         if (bigFont       != null) bigFont.dispose();
+        if (backgroundMusic != null) backgroundMusic.dispose();
     }
 }
