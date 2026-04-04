@@ -13,7 +13,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("com.mygame.server.ServerMain")
+    mainClass.set("com.mygame.server.util.ServerMain")
 }
 
 java {

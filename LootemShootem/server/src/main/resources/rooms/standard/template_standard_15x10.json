@@ -1,5 +1,5 @@
 {
-  "id": "empty_standard_room",
+  "id": "template_standard_15x10",
   "width": 15,
   "height": 10,
   "legend": {
@@ -13,13 +13,13 @@
   "rows": [
     "FFFFFFFFFFFFFFF",
     "FFFFFFFFFFFFFFF",
-    "FFFFFFFFFFFFFFF",
-    "FFFFFFFFFFFFFFF",
-    "FFFFFFFFFFFFFFF",
-    "FFFFFFFFFFFFFFF",
-    "FFFFFFFFFFFFFFF",
-    "FFFFFFFFFFFFFFF",
-    "FFFFFFFFFFFFFFF",
+    "FFFFFWTTTWFFFFF",
+    "FFFFFWTTTWFFFFF",
+    "FFFFFCTTTCFFFFF",
+    "FFFFFCTTTCFFFFF",
+    "FFFFFWCCCWFFFFF",
+    "FFFFFWHFHWFFFFF",
+    "FFFFFWNNNWFFFFF",
     "FFFFFFFFFFFFFFF"
   ]
 }

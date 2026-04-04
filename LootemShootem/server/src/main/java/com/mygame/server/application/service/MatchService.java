@@ -27,10 +27,14 @@ public final class MatchService {
     private final Map<String, InputMessage> latestInput = new ConcurrentHashMap<>();
 
     public MatchService() {
-        this(new MapProvider(), "map01");
+        this(new MapProvider(), "map01", 6);
     }
 
     public MatchService(MapProviderPort mapProvider, String mapId) {
+        this(mapProvider, mapId, 6);
+    }
+
+    public MatchService(MapProviderPort mapProvider, String mapId, int chestCount) {
         this.state          = mapProvider.provide(mapId);
         this.weaponRegistry = loadWeapons("weapons/weapons.json");
 
@@ -38,7 +42,7 @@ public final class MatchService {
         CollisionSystem   collision  = new CollisionSystem(state);
         ProjectileSystem  projectile = new ProjectileSystem(state, player);
         PickupSpawnSystem pickup     = new PickupSpawnSystem(state, weaponRegistry);
-        ChestSystem       chests     = new ChestSystem(state, weaponRegistry, rng);
+        ChestSystem       chests     = new ChestSystem(state, weaponRegistry, rng, chestCount);
 
         this.worldStepSystem = new ServerWorldStepSystem(
                 state, weaponRegistry, collision, projectile, pickup, player, chests);

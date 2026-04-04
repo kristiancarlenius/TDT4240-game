@@ -1,4 +1,4 @@
-package com.mygame.server;
+package com.mygame.server.util;
 
 import com.mygame.server.application.service.MatchService;
 import com.mygame.server.application.service.TickService;
@@ -21,7 +21,7 @@ public final class ServerMain {
         MapProviderPort mapProvider = "procedural".equals(config.mapMode)
             ? new ProceduralMapProvider(config.mapSeed)
             : new MapProvider();
-        MatchService matchService = new MatchService(mapProvider, config.mapId);
+        MatchService matchService = new MatchService(mapProvider, config.mapId, config.chestCount);
 
         // Rate limiter: allow up to 60 inputs/second per player
         RateLimiter rateLimiter = new RateLimiter(60);

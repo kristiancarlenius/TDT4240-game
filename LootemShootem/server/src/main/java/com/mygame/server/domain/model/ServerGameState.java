@@ -16,6 +16,7 @@ public final class ServerGameState {
 
     // row-major tiles[y*width + x]
     public final TileType[] tiles;
+    public final List<Vec2> chestSpawnPoints;
 
     public long tick = 0;
 
@@ -28,16 +29,26 @@ public final class ServerGameState {
     private final Random spawnRng = new Random();
     private int spawnIndex = 0;
 
-    private ServerGameState(String mapId, int width, int height, TileType[] tiles) {
+    private ServerGameState(String mapId, int width, int height, TileType[] tiles, List<Vec2> chestSpawnPoints) {
         this.mapId = mapId;
         this.width = width;
         this.height = height;
         this.tiles = tiles;
+        this.chestSpawnPoints = Collections.unmodifiableList(new ArrayList<>(chestSpawnPoints));
     }
 
     /** Creates a state from a pre-built tile array (used by MapParser). */
     public static ServerGameState fromTiles(String mapId, int width, int height, TileType[] tiles) {
-        return new ServerGameState(mapId, width, height, tiles);
+        return new ServerGameState(mapId, width, height, tiles, Collections.emptyList());
+    }
+
+    public static ServerGameState fromTiles(
+            String mapId,
+            int width,
+            int height,
+            TileType[] tiles,
+            List<Vec2> chestSpawnPoints) {
+        return new ServerGameState(mapId, width, height, tiles, chestSpawnPoints);
     }
 
     /** Fallback: programmatically generates a plain map with border walls + a few obstacles. */
@@ -61,7 +72,7 @@ public final class ServerGameState {
         }
         t[idx(14, 9, width)] = TileType.TRAP;
 
-        return new ServerGameState(mapId, width, height, t);
+        return new ServerGameState(mapId, width, height, t, Collections.emptyList());
     }
 
     public MapDto toMapDto() {
@@ -155,6 +166,20 @@ public final class ServerGameState {
         }
         if (floors.isEmpty()) return new Vec2(width / 2f, height / 2f);
         return floors.get(rng.nextInt(floors.size()));
+    }
+
+    /** Returns a random room-authored chest spawn point, falling back to any floor tile. */
+    public Vec2 randomChestSpawnTile(Random rng) {
+        List<Vec2> candidates = new ArrayList<>();
+        for (Vec2 p : chestSpawnPoints) {
+            if (isWalkableWorld(p.x, p.y)) {
+                candidates.add(p);
+            }
+        }
+        if (candidates.isEmpty()) {
+            return randomFloorTile(rng);
+        }
+        return candidates.get(rng.nextInt(candidates.size()));
     }
 
     /** Very simple collision: treat player as a point and forbid entering non-walkable tiles. */

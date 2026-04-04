@@ -23,18 +23,24 @@ import java.util.UUID;
  */
 public final class ChestSystem {
 
-    private static final int   CHEST_COUNT        = 6;
+    private static final int   DEFAULT_CHEST_COUNT = 6;
     private static final float INTERACT_RADIUS    = 0.65f;  // world units
     private static final float INTERACT_RADIUS_SQ = INTERACT_RADIUS * INTERACT_RADIUS;
 
     private final ServerGameState state;
     private final WeaponRegistry  weaponRegistry;
     private final Random          rng;
+    private final int             chestCount;
 
     public ChestSystem(ServerGameState state, WeaponRegistry weaponRegistry, Random rng) {
+        this(state, weaponRegistry, rng, DEFAULT_CHEST_COUNT);
+    }
+
+    public ChestSystem(ServerGameState state, WeaponRegistry weaponRegistry, Random rng, int chestCount) {
         this.state          = state;
         this.weaponRegistry = weaponRegistry;
         this.rng            = rng;
+        this.chestCount     = Math.max(0, chestCount);
         spawnInitialChests();
     }
 
@@ -57,8 +63,8 @@ public final class ChestSystem {
     // ── Private ─────────────────────────────────────────────────────────────
 
     private void spawnInitialChests() {
-        for (int i = 0; i < CHEST_COUNT; i++) {
-            Vec2       pos   = state.randomFloorTile(rng);
+        for (int i = 0; i < chestCount; i++) {
+            Vec2       pos   = state.randomChestSpawnTile(rng);
             ChestState chest = new ChestState(UUID.randomUUID().toString(), pos);
             rollLoot(chest);
             state.chests.add(chest);
