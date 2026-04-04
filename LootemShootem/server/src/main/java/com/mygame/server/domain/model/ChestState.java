@@ -7,14 +7,10 @@ import com.mygame.shared.util.Vec2;
 
 public final class ChestState {
 
-    /** Seconds before an opened chest resets with fresh loot. */
-    public static final float REOPEN_TIME = 30f;
-
     public final String chestId;
     public final Vec2   pos;
 
     public boolean   isOpen      = false;
-    public float     reopenTimer = 0f;
 
     // Pre-generated loot (decided when chest spawns / resets, applied on open)
     public PickupType lootType;
