@@ -118,17 +118,18 @@ public final class JsonRoomTemplateCatalog implements RoomTemplateCatalogPort {
             if (!(connection instanceof JarURLConnection)) {
                 return;
             }
-            JarFile jar = ((JarURLConnection) connection).getJarFile();
             String prefix = folder + "/";
-            Enumeration<JarEntry> entries = jar.entries();
-            while (entries.hasMoreElements()) {
-                JarEntry entry = entries.nextElement();
-                String name = entry.getName();
-                if (entry.isDirectory()) {
-                    continue;
-                }
-                if (name.startsWith(prefix) && name.endsWith(".json")) {
-                    out.add(name);
+            try (JarFile jar = ((JarURLConnection) connection).getJarFile()) {
+                Enumeration<JarEntry> entries = jar.entries();
+                while (entries.hasMoreElements()) {
+                    JarEntry entry = entries.nextElement();
+                    String name = entry.getName();
+                    if (entry.isDirectory()) {
+                        continue;
+                    }
+                    if (name.startsWith(prefix) && name.endsWith(".json")) {
+                        out.add(name);
+                    }
                 }
             }
         } catch (IOException e) {
