@@ -6,63 +6,119 @@ import com.mygame.server.domain.model.PlayerState;
 import com.mygame.server.domain.model.ServerGameState;
 import com.mygame.shared.dto.PickupType;
 import com.mygame.shared.dto.WeaponType;
+import com.mygame.shared.dto.TileType;
 import com.mygame.shared.util.Vec2;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Random;
 import java.util.UUID;
 
 /**
- * Manages chest lifecycle:
- *  - Spawns a fixed number of chests at map-load time on random floor tiles.
- *  - Each tick: detects players touching closed chests and applies loot.
- *  - Respawns (resets loot) of opened chests after REOPEN_TIME seconds.
+ * Manages chest lifecycle.
  *
- * No random floor pickups exist any more — chests are the only loot source
- * besides death drops.
+ * Chests are treated as a bounded pool of spawn spots:
+ *  - spawn from the authored chest-point list
+ *  - disappear when looted
+ *  - respawn later on a free spot chosen from the same pool
+ *
+ * This keeps the number of active chests bounded while still randomizing where
+ * the next chest appears.
  */
 public final class ChestSystem {
 
-    private static final int   CHEST_COUNT        = 6;
-    private static final float INTERACT_RADIUS    = 0.65f;  // world units
-    private static final float INTERACT_RADIUS_SQ = INTERACT_RADIUS * INTERACT_RADIUS;
+    private static final int   DEFAULT_CHEST_COUNT   = 6;
+    private static final float INTERACT_RADIUS       = 0.65f;  // world units
+    private static final float INTERACT_RADIUS_SQ    = INTERACT_RADIUS * INTERACT_RADIUS;
+    private static final float RESPAWN_MIN_SECONDS   = 20f;
+    private static final float RESPAWN_MAX_SECONDS   = 40f;
+    private static final float RESPAWN_RETRY_SECONDS = 0.5f;
 
     private final ServerGameState state;
     private final WeaponRegistry  weaponRegistry;
     private final Random          rng;
+    private final List<Vec2>       spawnCandidates;
+    // Spawn-point pool that is currently available for a chest.
+    private final List<Vec2>       freeSpawnPoints = new ArrayList<>();
+    // O(1) lookup for removing a spawn point from the free list.
+    private final Map<String, Integer> freeSpawnIndexByKey = new HashMap<>();
+    // Single respawn queue shared by all chests.
+    private final PriorityQueue<RespawnEvent> respawnQueue = new PriorityQueue<>(Comparator.comparingDouble(e -> e.dueTime));
+    private final int             initialChestCount;
+    private float                  elapsedSeconds = 0f;
+
+    private static final class RespawnEvent {
+        final float dueTime;
+
+        RespawnEvent(float dueTime) {
+            this.dueTime = dueTime;
+        }
+    }
 
     public ChestSystem(ServerGameState state, WeaponRegistry weaponRegistry, Random rng) {
+        this(state, weaponRegistry, rng, DEFAULT_CHEST_COUNT);
+    }
+
+    public ChestSystem(ServerGameState state, WeaponRegistry weaponRegistry, Random rng, int chestCount) {
         this.state          = state;
         this.weaponRegistry = weaponRegistry;
         this.rng            = rng;
+        this.spawnCandidates = buildSpawnCandidates();
+        // chestCount is the hard cap; if the map exposes fewer valid spots,
+        // we clamp to the number of available candidates.
+        this.initialChestCount = Math.min(Math.max(0, chestCount), spawnCandidates.size());
+        resetFreeSpawnPoints();
         spawnInitialChests();
     }
 
     // ── Tick ────────────────────────────────────────────────────────────────
 
+    /** Advances the respawn queue and checks all currently active chests. */
     public void update(float dt) {
-        for (ChestState chest : state.chests) {
-            if (chest.isOpen) {
-                chest.reopenTimer -= dt;
-                if (chest.reopenTimer <= 0f) {
-                    chest.isOpen = false;
-                    rollLoot(chest);
-                }
-            } else {
-                checkInteraction(chest);
-            }
+        elapsedSeconds += dt;
+        updateRespawns();
+
+        for (ChestState chest : new ArrayList<>(state.chests)) {
+            checkInteraction(chest);
         }
     }
 
     // ── Private ─────────────────────────────────────────────────────────────
 
+    /** Spawns the initial active chest set. */
     private void spawnInitialChests() {
-        for (int i = 0; i < CHEST_COUNT; i++) {
-            Vec2       pos   = state.randomFloorTile(rng);
-            ChestState chest = new ChestState(UUID.randomUUID().toString(), pos);
-            rollLoot(chest);
-            state.chests.add(chest);
+        for (int i = 0; i < initialChestCount; i++) {
+            if (!spawnChest()) {
+                break;
+            }
         }
+    }
+
+    /** Processes only the respawns that are due on this tick. */
+    private void updateRespawns() {
+        while (!respawnQueue.isEmpty() && respawnQueue.peek().dueTime <= elapsedSeconds) {
+            respawnQueue.poll();
+            if (!spawnChest()) {
+                respawnQueue.add(new RespawnEvent(elapsedSeconds + RESPAWN_RETRY_SECONDS));
+                break;
+            }
+        }
+    }
+
+    private boolean spawnChest() {
+        Vec2 pos = takeRandomFreeSpawnPoint();
+        if (pos == null) {
+            return false;
+        }
+
+        ChestState chest = new ChestState(UUID.randomUUID().toString(), pos);
+        rollLoot(chest);
+        state.chests.add(chest);
+        return true;
     }
 
     /** Check if any alive player is touching this closed chest. */
@@ -79,12 +135,80 @@ public final class ChestSystem {
     }
 
     private void openChest(ChestState chest, PlayerState player) {
-        chest.isOpen         = true;
-        chest.reopenTimer    = ChestState.REOPEN_TIME;
         player.chestFreezeTimer = 0.2f;
         applyLoot(chest, player);
-        System.out.println("[CHEST] " + player.username + " opened chest -> " + chest.lootType
+        state.chests.remove(chest);
+        addFreeSpawnPoint(chest.pos);
+        // Respawn is decoupled from the chest instance; we only schedule a new
+        // spawn event and let the queue decide when to create it.
+        respawnQueue.add(new RespawnEvent(elapsedSeconds + randomRespawnDelay()));
+
+        System.out.println("[CHEST] " + player.username + " looted chest -> " + chest.lootType
                 + (chest.lootWeapon != null ? " (" + chest.lootWeapon + ")" : ""));
+    }
+
+    private float randomRespawnDelay() {
+        return RESPAWN_MIN_SECONDS + rng.nextFloat() * (RESPAWN_MAX_SECONDS - RESPAWN_MIN_SECONDS);
+    }
+
+    /** Collects all legal chest spawn points for this map. */
+    private List<Vec2> buildSpawnCandidates() {
+        if (!state.chestSpawnPoints.isEmpty()) {
+            return new ArrayList<>(state.chestSpawnPoints);
+        }
+
+        List<Vec2> candidates = new ArrayList<>();
+        for (int y = 1; y < state.height - 1; y++) {
+            for (int x = 1; x < state.width - 1; x++) {
+                if (state.tiles[y * state.width + x] == TileType.FLOOR) {
+                    candidates.add(new Vec2(x + 0.5f, y + 0.5f));
+                }
+            }
+        }
+        return candidates;
+    }
+
+    /** Rebuilds the free-spawn pool from the full candidate list. */
+    private void resetFreeSpawnPoints() {
+        freeSpawnPoints.clear();
+        freeSpawnIndexByKey.clear();
+        for (Vec2 pos : spawnCandidates) {
+            addFreeSpawnPoint(pos);
+        }
+    }
+
+    /** Removes one random free spawn point in O(1). */
+    private Vec2 takeRandomFreeSpawnPoint() {
+        if (freeSpawnPoints.isEmpty()) {
+            return null;
+        }
+
+        int index = rng.nextInt(freeSpawnPoints.size());
+        Vec2 pos = freeSpawnPoints.get(index);
+
+        int lastIndex = freeSpawnPoints.size() - 1;
+        Vec2 last = freeSpawnPoints.get(lastIndex);
+        freeSpawnPoints.set(index, last);
+        freeSpawnIndexByKey.put(spawnKey(last), index);
+        freeSpawnPoints.remove(lastIndex);
+        freeSpawnIndexByKey.remove(spawnKey(pos));
+
+        return pos;
+    }
+
+    /** Returns a spawn point to the free pool if it is not already present. */
+    private void addFreeSpawnPoint(Vec2 pos) {
+        String key = spawnKey(pos);
+        if (freeSpawnIndexByKey.containsKey(key)) {
+            return;
+        }
+        freeSpawnIndexByKey.put(key, freeSpawnPoints.size());
+        freeSpawnPoints.add(pos);
+    }
+
+    /** Uses tile coordinates so mirrored floats still map to the same spot. */
+    private static String spawnKey(Vec2 pos) {
+        return ((int) Math.floor(pos.x)) + ":" + ((int) Math.floor(pos.y));
     }
 
     // ── Loot application ─────────────────────────────────────────────────────

@@ -1,0 +1,25 @@
+{
+  "id": "apartment_room_06",
+  "width": 15,
+  "height": 10,
+  "legend": {
+    "W": "WALL",
+    "F": "FLOOR",
+    "N": "WINDOW",
+    "T": "TRAP",
+    "C": "COBWEB",
+    "H": "CHEST_SPAWN"
+  },
+  "rows": [
+    "WWFFFFFFFFFFFFW",
+    "WFFFFFFFFFFFFWW",
+    "FFFTFWFFTWWFFFF",
+    "FFFTWWFFTWFFFFF",
+    "FFFFFFFFFFFFFFF",
+    "FFFFFFFHFFFFFFF",
+    "FFFFFFFFFFFFFFF",
+    "FFFFWWTFFWFFFFF",
+    "WFFFFWTFFWWFFWW",
+    "WWFFFFFFFFFFFFW"
+  ]
+}
