@@ -1,0 +1,10 @@
+# Ignore generated Gradle output and compiled artifacts
+/.gradle/
+build/
+**/build/
+**/*.class
+**/*.jar
+**/*.bin
+
+# Keep Gradle wrapper jar committed
+!/gradle/wrapper/gradle-wrapper.jar
