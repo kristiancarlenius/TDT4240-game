@@ -168,20 +168,6 @@ public final class ServerGameState {
         return floors.get(rng.nextInt(floors.size()));
     }
 
-    /** Returns a random room-authored chest spawn point, falling back to any floor tile. */
-    public Vec2 randomChestSpawnTile(Random rng) {
-        List<Vec2> candidates = new ArrayList<>();
-        for (Vec2 p : chestSpawnPoints) {
-            if (isWalkableWorld(p.x, p.y)) {
-                candidates.add(p);
-            }
-        }
-        if (candidates.isEmpty()) {
-            return randomFloorTile(rng);
-        }
-        return candidates.get(rng.nextInt(candidates.size()));
-    }
-
     /** Very simple collision: treat player as a point and forbid entering non-walkable tiles. */
     public Vec2 collidePlayer(Vec2 oldPos, Vec2 desiredPos) {
         // attempt full move; if blocked, try axis-separated
