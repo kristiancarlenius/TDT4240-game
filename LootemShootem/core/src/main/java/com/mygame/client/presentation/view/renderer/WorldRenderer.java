@@ -6,7 +6,6 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.mygame.client.domain.model.WorldState;
 import com.mygame.shared.dto.*;
@@ -45,7 +44,10 @@ public final class WorldRenderer {
     private Texture playerEnemyTex;
     private Texture overheadTex;       // single top-down sprite, faces up in PNG
     private final Texture[] chestTex = new Texture[2]; // chest_0 / chest_1 for closed variants
-    private Texture chestOpenTex;
+    // chestOpenFrames[variant][frame]: frame 0=slightly open, 1=half open, 2=fully open
+    private final Texture[][] chestOpenFrames = new Texture[2][3];
+    /** Per-chest timer (seconds) tracking how long the chest has been open. */
+    private final Map<String, Float> chestOpenTimers = new HashMap<>();
     private Texture projBulletTex;
     private Texture projArrowTex;
     private Texture projFlameTex;
@@ -79,7 +81,8 @@ public final class WorldRenderer {
         if (playerEnemyTex != null) playerEnemyTex.dispose();
         if (overheadTex    != null) overheadTex.dispose();
         for (Texture t : chestTex) if (t != null) t.dispose();
-        if (chestOpenTex   != null) chestOpenTex.dispose();
+        for (Texture[] frames : chestOpenFrames)
+            for (Texture t : frames) if (t != null) t.dispose();
         if (projBulletTex  != null) projBulletTex.dispose();
         if (projArrowTex   != null) projArrowTex.dispose();
         if (projFlameTex   != null) projFlameTex.dispose();
@@ -191,14 +194,17 @@ public final class WorldRenderer {
 
     private void drawChestsShapes(GameSnapshotDto snap) {
         if (snap.chests == null) return;
+        float dt = Gdx.graphics.getDeltaTime();
         for (ChestDto c : snap.chests) {
             if (c == null || c.pos == null) continue;
-            if (resolveChestTexture(c) != null) continue; // drawn in sprite pass
             if (c.isOpen) {
-                shapes.setColor(0.25f, 0.18f, 0.10f, 1f); // dark open chest
+                chestOpenTimers.merge(c.chestId, dt, Float::sum);
             } else {
-                shapes.setColor(0.75f, 0.55f, 0.15f, 1f); // golden closed
+                chestOpenTimers.remove(c.chestId);
             }
+            if (resolveChestTexture(c) != null) continue; // drawn in sprite pass
+            shapes.setColor(c.isOpen ? new com.badlogic.gdx.graphics.Color(0.25f, 0.18f, 0.10f, 1f)
+                                     : new com.badlogic.gdx.graphics.Color(0.75f, 0.55f, 0.15f, 1f));
             shapes.rect(c.pos.x - 0.55f, c.pos.y - 0.55f, 1.1f, 1.1f);
         }
     }
@@ -214,9 +220,12 @@ public final class WorldRenderer {
     }
 
     private Texture resolveChestTexture(ChestDto c) {
-        if (c.isOpen) return chestOpenTex;
-        // Pick variant deterministically from chestId — no protocol change needed
         int v = Math.abs(c.chestId.hashCode()) % 2;
+        if (c.isOpen) {
+            float elapsed = chestOpenTimers.getOrDefault(c.chestId, 0f);
+            int frame = elapsed < 0.2f ? 0 : elapsed < 0.4f ? 1 : 2;
+            return chestOpenFrames[v][frame];
+        }
         return chestTex[v];
     }
 
@@ -475,7 +484,10 @@ public final class WorldRenderer {
     private void loadAssets() {
         for (TileType t : TileType.values()) {
             Texture tx = tryLoad("tiles/tile_" + t.name().toLowerCase() + ".png");
-            if (tx != null) tileTex.put(t, tx);
+            if (tx != null) {
+                tx.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+                tileTex.put(t, tx);
+            }
         }
         for (PickupType p : PickupType.values()) {
             Texture tx = tryLoad("pickups/pickup_" + p.name().toLowerCase() + ".png");
@@ -490,7 +502,11 @@ public final class WorldRenderer {
         overheadTex    = tryLoad("characters/overhead_top.png");
         chestTex[0]    = tryLoad("chests/chest_0.png");
         chestTex[1]    = tryLoad("chests/chest_1.png");
-        chestOpenTex   = tryLoad("chests/chest_open.png");
+        for (int v = 0; v < 2; v++) {
+            chestOpenFrames[v][0] = tryLoad("chests/chest_" + v + "_open_1.png");
+            chestOpenFrames[v][1] = tryLoad("chests/chest_" + v + "_open_2.png");
+            chestOpenFrames[v][2] = tryLoad("chests/chest_" + v + "_open.png");
+        }
         projBulletTex  = tryLoad("projectiles/bullet.png");
         projArrowTex   = tryLoad("projectiles/arrow.png");
         projFlameTex   = tryLoad("projectiles/flame.png");

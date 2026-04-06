@@ -11,6 +11,8 @@ public final class ChestState {
     public final Vec2   pos;
 
     public boolean   isOpen      = false;
+    /** Seconds remaining before an opened chest is removed from the world. */
+    public float     openTimer   = 0f;
 
     // Pre-generated loot (decided when chest spawns / resets, applied on open)
     public PickupType lootType;
