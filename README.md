@@ -14,7 +14,7 @@ Players join from a shared server URL, fight over weapon pickups and health pack
 java --version   # must show 11.x
 ```
 
-Install on Ubuntu/Pop!_OS if missing:
+Install on Ubuntu if missing:
 ```bash
 sudo apt update && sudo apt install openjdk-11-jdk
 ```
