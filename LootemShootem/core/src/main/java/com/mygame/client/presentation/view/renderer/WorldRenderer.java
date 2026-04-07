@@ -25,12 +25,34 @@ import java.util.Map;
  *   assets/tiles/tile_floor.png       (or tile_wall, tile_window, tile_trap)
  *   assets/pickups/pickup_health.png  (or pickup_speed, pickup_weapon)
  *   assets/weapons/weapon_crossbow.png (lowercase WeaponType name, used as weapon-pickup icon)
- *   assets/characters/player_local.png
- *   assets/characters/player_enemy.png
+ *   assets/characters/skin_0.png … skin_3.png  (256×256, 4 rows × 4 cols of 64×64)
+ *   assets/characters/player_local.png  (legacy fallback)
+ *   assets/characters/player_enemy.png  (legacy fallback)
  *
  * Any missing texture falls back to ShapeRenderer geometry so the game always renders.
+ *
+ * ── Player animation ──────────────────────────────────────────────────────────
+ * Each skin_N.png is a 256×256 grid: 4 rows (directions) × 4 columns (frames).
+ *   Row 0 — DOWN  (moveDir 0)
+ *   Row 1 — LEFT  (moveDir 1)
+ *   Row 2 — UP    (moveDir 2)
+ *   Row 3 — RIGHT (moveDir 3)
+ *   Column 0 — idle; columns 1–3 — walk cycle
+ *
+ * The body sprite does NOT rotate — it switches row based on WASD/joystick direction.
+ * The weapon sprite still rotates freely toward the mouse/aim direction.
  */
 public final class WorldRenderer {
+
+    // ── Walk-animation constants ──────────────────────────────────────────────
+    private static final int   SKIN_COUNT          = 4;
+    private static final int   DIR_COUNT           = 4;    // DOWN/LEFT/UP/RIGHT
+    private static final int   WALK_FRAME_COUNT    = 4;    // 0=idle, 1-3=walk
+    private static final float WALK_FRAME_DURATION = 0.13f;
+    private static final float WALK_CYCLE_DURATION = WALK_FRAME_DURATION * 3;
+    private static final float WALK_THRESHOLD      = 0.05f;
+    /** World-units size (width = height) of the rendered player sprite. */
+    private static final float CHAR_SIZE           = 1.72f;
 
     private final WorldState         worldState;
     private final OrthographicCamera camera;
@@ -41,11 +63,28 @@ public final class WorldRenderer {
     private final Map<TileType,   Texture> tileTex    = new EnumMap<>(TileType.class);
     private final Map<PickupType, Texture> pickupTex  = new EnumMap<>(PickupType.class);
     private final Map<WeaponType, Texture> weaponTex  = new EnumMap<>(WeaponType.class);
+
+    // ── Player skin / animation ───────────────────────────────────────────────
+    /** Raw spritesheet textures; one per skin index. */
+    private final Texture[]           skinTex    = new Texture[SKIN_COUNT];
+    /** skinFrames[skinId][dir][frame] — dir: 0=DOWN 1=LEFT 2=UP 3=RIGHT; frame: 0=idle 1-3=walk. */
+    private final TextureRegion[][][] skinFrames = new TextureRegion[SKIN_COUNT][DIR_COUNT][WALK_FRAME_COUNT];
+    /** Per-player accumulated walk-cycle timer. */
+    private final Map<String, Float>   playerAnimTimers = new HashMap<>();
+    /** Last non-idle moveDir per player, so idle pose keeps the last facing direction. */
+    private final Map<String, Integer> lastMoveDirs     = new HashMap<>();
+
+    // Legacy single-sprite fallback (used if no skin sheets found)
     private Texture playerLocalTex;
     private Texture playerEnemyTex;
     private Texture overheadTex;       // single top-down sprite, faces up in PNG
-    private final Texture[] chestTex = new Texture[2]; // chest_0 / chest_1 for closed variants
-    private Texture chestOpenTex;
+
+    // Chest textures
+    private final Texture[] chestTex = new Texture[2];
+    private final Texture[][] chestOpenFrames = new Texture[2][3];
+    private final Map<String, Float> chestOpenTimers = new HashMap<>();
+
+    // Projectile textures
     private Texture projBulletTex;
     private Texture projArrowTex;
     private Texture projFlameTex;
@@ -53,9 +92,9 @@ public final class WorldRenderer {
     private Sound hurtSound;
     private boolean wasLocalPlayerHurt = false;
 
-    /** Accumulated time used for heal pulse animation. */
+    /** Accumulated time used for periodic animations. */
     private float time = 0f;
-    /** Per-player heal flash timer tracked locally (avoids serialization issues). */
+    /** Per-player heal flash timer tracked locally. */
     private final Map<String, Float> healTimers = new HashMap<>();
 
     public WorldRenderer(WorldState worldState,
@@ -69,24 +108,26 @@ public final class WorldRenderer {
         loadAssets();
     }
 
-    // ---- Lifecycle ----
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     public void dispose() {
         tileTex.values().forEach(Texture::dispose);
         pickupTex.values().forEach(Texture::dispose);
         weaponTex.values().forEach(Texture::dispose);
+        for (Texture t : skinTex) if (t != null) t.dispose();
         if (playerLocalTex != null) playerLocalTex.dispose();
         if (playerEnemyTex != null) playerEnemyTex.dispose();
         if (overheadTex    != null) overheadTex.dispose();
         for (Texture t : chestTex) if (t != null) t.dispose();
-        if (chestOpenTex   != null) chestOpenTex.dispose();
+        for (Texture[] frames : chestOpenFrames)
+            for (Texture t : frames) if (t != null) t.dispose();
         if (projBulletTex  != null) projBulletTex.dispose();
         if (projArrowTex   != null) projArrowTex.dispose();
         if (projFlameTex   != null) projFlameTex.dispose();
         if (hurtSound      != null) hurtSound.dispose();
     }
 
-    // ---- Camera ----
+    // ── Camera ────────────────────────────────────────────────────────────────
 
     public void updateCamera() {
         MapDto    map = worldState.getMap();
@@ -106,14 +147,14 @@ public final class WorldRenderer {
         camera.update();
     }
 
-    // ---- Render ----
+    // ── Render ────────────────────────────────────────────────────────────────
 
     public void render() {
         time += Gdx.graphics.getDeltaTime();
         MapDto          map  = worldState.getMap();
         GameSnapshotDto snap = worldState.getSnapshot();
 
-        // ── Shape pass: everything without a texture ──────────────────────────
+        // ── Shape pass ───────────────────────────────────────────────────────
         shapes.setProjectionMatrix(camera.combined);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
 
@@ -127,7 +168,7 @@ public final class WorldRenderer {
 
         shapes.end();
 
-        // ── Sprite pass: textured elements drawn on top ───────────────────────
+        // ── Sprite pass ──────────────────────────────────────────────────────
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
 
@@ -154,13 +195,13 @@ public final class WorldRenderer {
         }
     }
 
-    // ── Map ──────────────────────────────────────────────────────────────────
+    // ── Map ───────────────────────────────────────────────────────────────────
 
     private void drawMapShapes(MapDto map) {
         for (int y = 0; y < map.height; y++) {
             for (int x = 0; x < map.width; x++) {
                 TileType t = map.tiles[y * map.width + x];
-                if (tileTex.containsKey(t)) continue; // textured – drawn in sprite pass
+                if (tileTex.containsKey(t)) continue;
                 setTileColor(t);
                 shapes.rect(x, y, 1f, 1f);
             }
@@ -182,23 +223,26 @@ public final class WorldRenderer {
             case WALL:   shapes.setColor(0.20f, 0.20f, 0.22f, 1f); break;
             case WINDOW: shapes.setColor(0.25f, 0.35f, 0.45f, 1f); break;
             case TRAP:   shapes.setColor(0.50f, 0.20f, 0.20f, 1f); break;
-            case COBWEB: shapes.setColor(0.55f, 0.55f, 0.50f, 1f); break; // grey-white
+            case COBWEB: shapes.setColor(0.55f, 0.55f, 0.50f, 1f); break;
             default:     shapes.setColor(0.12f, 0.12f, 0.14f, 1f); break;
         }
     }
 
-    // ── Chests ───────────────────────────────────────────────────────────────
+    // ── Chests ────────────────────────────────────────────────────────────────
 
     private void drawChestsShapes(GameSnapshotDto snap) {
         if (snap.chests == null) return;
+        float dt = Gdx.graphics.getDeltaTime();
         for (ChestDto c : snap.chests) {
             if (c == null || c.pos == null) continue;
-            if (resolveChestTexture(c) != null) continue; // drawn in sprite pass
             if (c.isOpen) {
-                shapes.setColor(0.25f, 0.18f, 0.10f, 1f); // dark open chest
+                chestOpenTimers.merge(c.chestId, dt, Float::sum);
             } else {
-                shapes.setColor(0.75f, 0.55f, 0.15f, 1f); // golden closed
+                chestOpenTimers.remove(c.chestId);
             }
+            if (resolveChestTexture(c) != null) continue;
+            shapes.setColor(c.isOpen ? new Color(0.25f, 0.18f, 0.10f, 1f)
+                                     : new Color(0.75f, 0.55f, 0.15f, 1f));
             shapes.rect(c.pos.x - 0.55f, c.pos.y - 0.55f, 1.1f, 1.1f);
         }
     }
@@ -214,24 +258,27 @@ public final class WorldRenderer {
     }
 
     private Texture resolveChestTexture(ChestDto c) {
-        if (c.isOpen) return chestOpenTex;
-        // Pick variant deterministically from chestId — no protocol change needed
         int v = Math.abs(c.chestId.hashCode()) % 2;
+        if (c.isOpen) {
+            float elapsed = chestOpenTimers.getOrDefault(c.chestId, 0f);
+            int frame = elapsed < 0.2f ? 0 : elapsed < 0.4f ? 1 : 2;
+            return chestOpenFrames[v][frame];
+        }
         return chestTex[v];
     }
 
-    // ── Pickups ──────────────────────────────────────────────────────────────
+    // ── Pickups ───────────────────────────────────────────────────────────────
 
     private void drawPickupsShapes(GameSnapshotDto snap) {
         if (snap.pickups == null) return;
         for (PickupDto p : snap.pickups) {
             if (p == null || p.pos == null) continue;
-            // Resolve best texture: weapon-specific > generic pickup > shape fallback
             if (resolvePickupTexture(p) != null) continue;
+            float bobOffset = (float) Math.sin(time * 3.0f + p.pos.x + p.pos.y) * 0.12f;
             shapes.setColor(0.10f, 0.10f, 0.10f, 1f);
-            shapes.circle(p.pos.x, p.pos.y, 0.38f, 16);
+            shapes.circle(p.pos.x, p.pos.y + bobOffset, 0.38f, 16);
             setPickupColor(p.type);
-            shapes.circle(p.pos.x, p.pos.y, 0.28f, 16);
+            shapes.circle(p.pos.x, p.pos.y + bobOffset, 0.28f, 16);
         }
     }
 
@@ -241,18 +288,30 @@ public final class WorldRenderer {
             if (p == null || p.pos == null) continue;
             Texture tx = resolvePickupTexture(p);
             if (tx == null) continue;
+
+            float bobSpeed  = (p.type == PickupType.HEALTH) ? 4.0f : 3.0f;
+            float bobRange  = (p.type == PickupType.HEALTH) ? 0.18f : 0.12f;
+            float bobOffset = (float) Math.sin(time * bobSpeed + p.pos.x + p.pos.y) * bobRange;
+
             if (p.type == PickupType.WEAPON && tx == weaponTex.get(p.weaponType)) {
-                // Draw gun sprites with correct aspect ratio so they look like guns on the ground
+                float angle = (time * 45f) % 360f;
                 float h = 0.5f;
                 float w = (tx.getHeight() > 0) ? h * tx.getWidth() / (float) tx.getHeight() : h;
-                batch.draw(tx, p.pos.x - w * 0.5f, p.pos.y - h * 0.5f, w, h);
+                float cx = p.pos.x;
+                float cy = p.pos.y + bobOffset;
+                batch.draw(tx,
+                    cx - w * 0.5f, cy - h * 0.5f,
+                    w * 0.5f, h * 0.5f,
+                    w, h,
+                    1f, 1f,
+                    angle,
+                    0, 0, tx.getWidth(), tx.getHeight(), false, false);
             } else {
-                batch.draw(tx, p.pos.x - 0.38f, p.pos.y - 0.38f, 0.76f, 0.76f);
+                batch.draw(tx, p.pos.x - 0.38f, p.pos.y + bobOffset - 0.38f, 0.76f, 0.76f);
             }
         }
     }
 
-    /** Returns weapon-specific sprite, then pickup-type sprite, then null (shape fallback). */
     private Texture resolvePickupTexture(PickupDto p) {
         if (p.type == PickupType.WEAPON && p.weaponType != null) {
             Texture wt = weaponTex.get(p.weaponType);
@@ -270,19 +329,25 @@ public final class WorldRenderer {
         }
     }
 
-    // ── Players ──────────────────────────────────────────────────────────────
+    // ── Players ───────────────────────────────────────────────────────────────
+
+    /** Returns true when at least the first skin sheet loaded successfully. */
+    private boolean hasSkinFrames() {
+        return skinFrames[0][0][0] != null;
+    }
 
     private void drawPlayersShapes(GameSnapshotDto snap) {
         String localId = worldState.getLocalPlayerId();
         for (PlayerDto p : snap.players) {
             if (p.pos == null || p.isDead) continue;
-            if (overheadTex != null) continue; // rotated sprite handles all players
+            // Skip shape rendering if any textured sprite will handle this player
+            if (hasSkinFrames() || overheadTex != null) continue;
             boolean isMe = localId != null && localId.equals(p.playerId);
             Texture tx = isMe ? playerLocalTex : playerEnemyTex;
             if (tx != null) continue;
 
             if (p.isHurt) {
-                shapes.setColor(1.0f, 0.3f, 0.3f, 1f); // flash red
+                shapes.setColor(1.0f, 0.3f, 0.3f, 1f);
             } else if (p.isHealed) {
                 boolean flashOn = ((int)(time * 16f) % 2) == 0;
                 shapes.setColor(flashOn ? new Color(1f, 1f, 0f, 1f) : new Color(0f, 1f, 1f, 1f));
@@ -304,16 +369,18 @@ public final class WorldRenderer {
     private void drawPlayersSprites(GameSnapshotDto snap) {
         float dt = Gdx.graphics.getDeltaTime();
         String localId = worldState.getLocalPlayerId();
+
         for (PlayerDto p : snap.players) {
             if (p.pos == null || p.isDead) continue;
 
-            // Trigger heal animation via lastPickupNotice (reliable, already used by toast)
+            // ── Heal flash timer ─────────────────────────────────────────────
             if (p.lastPickupNotice != null && p.lastPickupNotice.contains("HP")) {
                 healTimers.put(p.playerId, 0.6f);
             }
             float healLeft = Math.max(0f, healTimers.getOrDefault(p.playerId, 0f) - dt);
             healTimers.put(p.playerId, healLeft);
 
+            // ── Tint color (hurt / healed / normal) ──────────────────────────
             if (p.isHurt) {
                 batch.setColor(1f, 0.3f, 0.3f, 1f);
             } else if (healLeft > 0f) {
@@ -323,27 +390,11 @@ public final class WorldRenderer {
                 batch.setColor(Color.WHITE);
             }
 
-            if (overheadTex != null) {
-                // PNG faces up → rotate to facing direction (same math as projectiles)
-                float angle = (p.facing != null)
-                        ? (float) Math.toDegrees(Math.atan2(p.facing.y, p.facing.x)) - 90f
-                        : -90f;
-                // Crop 20px border on each side, maintain aspect ratio, scale to 3.6 units tall
-                int crop  = 20;
-                int srcX  = crop;
-                int srcY  = crop;
-                int srcW  = overheadTex.getWidth()  - crop * 2;
-                int srcH  = overheadTex.getHeight() - crop * 2;
-                float charH = 3.6f;
-                float charW = charH * srcW / (float) srcH;
-                batch.draw(overheadTex,
-                        p.pos.x - charW * 0.5f, p.pos.y - charH * 0.5f,
-                        charW * 0.5f, charH * 0.5f,
-                        charW, charH,
-                        1f, 1f,
-                        angle,
-                        srcX, srcY, srcW, srcH,
-                        false, false);
+            // ── Select rendering path ────────────────────────────────────────
+            if (hasSkinFrames()) {
+                drawAnimatedSkin(p, dt);
+            } else if (overheadTex != null) {
+                drawLegacyOverhead(p);
             } else {
                 boolean isMe = localId != null && localId.equals(p.playerId);
                 Texture bodyTex = isMe ? playerLocalTex : playerEnemyTex;
@@ -352,25 +403,91 @@ public final class WorldRenderer {
             }
 
             drawWeaponOverlay(p);
-
-            // Reset color for next items (like health bars if they existed or other players)
             batch.setColor(Color.WHITE);
         }
     }
 
+    /**
+     * Draws the animated skin sprite for a player.
+     * Body direction is driven by WASD/joystick (4-way, no free rotation).
+     * Walk cycle advances when the player is moving.
+     */
+    private void drawAnimatedSkin(PlayerDto p, float dt) {
+        int skinId = (p.skinId >= 0 && p.skinId < SKIN_COUNT) ? p.skinId : 0;
+
+        // ── Resolve direction row ─────────────────────────────────────────────
+        // moveDir: 0=DOWN 1=LEFT 2=UP 3=RIGHT; -1=idle (use last known)
+        int dir;
+        if (p.moveDir >= 0 && p.moveDir < DIR_COUNT) {
+            dir = p.moveDir;
+            lastMoveDirs.put(p.playerId, dir);
+        } else {
+            // Idle — keep last known direction so pose doesn't snap to default
+            dir = lastMoveDirs.getOrDefault(p.playerId, 2); // default UP
+        }
+
+        TextureRegion[] dirFrames = skinFrames[skinId][dir];
+        if (dirFrames[0] == null) return;
+
+        // ── Walk cycle ────────────────────────────────────────────────────────
+        float velMag = (p.vel != null)
+                ? (float) Math.sqrt(p.vel.x * p.vel.x + p.vel.y * p.vel.y)
+                : 0f;
+        boolean walking = velMag > WALK_THRESHOLD;
+
+        float timer = playerAnimTimers.getOrDefault(p.playerId, 0f);
+        if (walking) {
+            timer += dt;
+            if (timer >= WALK_CYCLE_DURATION) timer -= WALK_CYCLE_DURATION;
+        } else {
+            timer = 0f;
+        }
+        playerAnimTimers.put(p.playerId, timer);
+
+        int frame = walking ? 1 + (int)(timer / WALK_FRAME_DURATION) % 3 : 0;
+        TextureRegion region = dirFrames[frame];
+
+        // No rotation — the row already encodes the direction
+        batch.draw(region,
+                p.pos.x - CHAR_SIZE * 0.5f, p.pos.y - CHAR_SIZE * 0.5f,
+                CHAR_SIZE, CHAR_SIZE);
+    }
+
+    /** Legacy renderer for the single overhead_top.png sprite (no animation). */
+    private void drawLegacyOverhead(PlayerDto p) {
+        float angle = (p.facing != null)
+                ? (float) Math.toDegrees(Math.atan2(p.facing.y, p.facing.x)) - 90f
+                : -90f;
+        int crop  = 20;
+        int srcX  = crop;
+        int srcY  = crop;
+        int srcW  = overheadTex.getWidth()  - crop * 2;
+        int srcH  = overheadTex.getHeight() - crop * 2;
+        float charH = 3.6f;
+        float charW = charH * srcW / (float) srcH;
+        batch.draw(overheadTex,
+                p.pos.x - charW * 0.5f, p.pos.y - charH * 0.5f,
+                charW * 0.5f, charH * 0.5f,
+                charW, charH,
+                1f, 1f,
+                angle,
+                srcX, srcY, srcW, srcH,
+                false, false);
+    }
+
     /** Per-weapon right-hand offset (perpendicular distance from player centre). */
     private static float weaponRightDist(WeaponType t) {
-        if (t == null) return 0.70f;
+        if (t == null) return 0.45f;
         switch (t) {
-            case CROSSBOW:     return 0.42f;
-            case PISTOL:       return 0.84f;
-            case UZI:          return 0.84f;
-            case AK:           return 0.84f;
-            case MACHINEGUN:   return 0.70f;
-            case SHOTGUN:      return 0.70f;
-            case SNIPER:       return 0.70f;
-            case FLAMETHROWER: return 0.70f;
-            default:           return 0.70f;
+            case CROSSBOW:     return 0.28f;
+            case PISTOL:       return 0.50f;
+            case UZI:          return 0.50f;
+            case AK:           return 0.50f;
+            case MACHINEGUN:   return 0.45f;
+            case SHOTGUN:      return 0.45f;
+            case SNIPER:       return 0.45f;
+            case FLAMETHROWER: return 0.45f;
+            default:           return 0.45f;
         }
     }
 
@@ -386,9 +503,8 @@ public final class WorldRenderer {
 
         float angle = (float) Math.toDegrees(Math.atan2(p.facing.y, p.facing.x));
 
-        // Right hand: perpendicular CW from facing (facing.y, -facing.x), pulled back
         float rightDist = weaponRightDist(p.equippedWeaponType);
-        float backDist  = 0.75f;
+        float backDist  = 0.20f;
         float handX = p.pos.x + ( p.facing.y) * rightDist - p.facing.x * backDist;
         float handY = p.pos.y + (-p.facing.x) * rightDist - p.facing.y * backDist;
 
@@ -396,7 +512,6 @@ public final class WorldRenderer {
         float weapH = (wt.getWidth() > 0)
                 ? weapW * wt.getHeight() / (float) wt.getWidth()
                 : 0.7484f;
-        // No flip — always rotate freely; avoids the jump/position artifact at 90°
         float origX = 0f;
         float origY = weapH / 2f;
 
@@ -411,21 +526,19 @@ public final class WorldRenderer {
                 false, false);
     }
 
-    // ── Projectiles ──────────────────────────────────────────────────────────
+    // ── Projectiles ───────────────────────────────────────────────────────────
 
-    /** Shape fallback for projectiles without a texture. */
     private void drawProjectilesShapes(GameSnapshotDto snap) {
         if (snap.projectiles == null) return;
         shapes.setColor(0.95f, 0.90f, 0.20f, 1f);
         for (ProjectileDto pr : snap.projectiles) {
             if (pr == null || pr.pos == null) continue;
-            if (resolveProjectileTexture(pr, snap) != null) continue; // drawn in sprite pass
+            if (resolveProjectileTexture(pr, snap) != null) continue;
             float r = pr.radius > 0 ? pr.radius : 0.10f;
             shapes.circle(pr.pos.x, pr.pos.y, r, 12);
         }
     }
 
-    /** Textured projectiles, rotated to match velocity direction. PNGs point straight up. */
     private void drawProjectilesSprites(GameSnapshotDto snap) {
         if (snap.projectiles == null) return;
         for (ProjectileDto pr : snap.projectiles) {
@@ -433,7 +546,6 @@ public final class WorldRenderer {
             Texture tx = resolveProjectileTexture(pr, snap);
             if (tx == null) continue;
 
-            // PNGs point up (90° world). Rotate to velocity direction.
             float angle = (float) Math.toDegrees(Math.atan2(pr.vel.y, pr.vel.x)) - 90f;
 
             boolean isArrow = (tx == projArrowTex);
@@ -451,10 +563,6 @@ public final class WorldRenderer {
         }
     }
 
-    /**
-     * Maps a projectile to its texture by looking up the owner's equipped weapon.
-     * CROSSBOW → arrow, FLAMETHROWER → flame, everything else → bullet.
-     */
     private Texture resolveProjectileTexture(ProjectileDto pr, GameSnapshotDto snap) {
         WeaponType wt = null;
         if (snap.players != null && pr.ownerPlayerId != null) {
@@ -473,28 +581,62 @@ public final class WorldRenderer {
     // ── Asset loading ─────────────────────────────────────────────────────────
 
     private void loadAssets() {
+        // Tile textures (pixel art — Nearest filter)
         for (TileType t : TileType.values()) {
             Texture tx = tryLoad("tiles/tile_" + t.name().toLowerCase() + ".png");
-            if (tx != null) tileTex.put(t, tx);
+            if (tx != null) {
+                tx.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+                tileTex.put(t, tx);
+            }
         }
+
+        // Pickup icons
         for (PickupType p : PickupType.values()) {
             Texture tx = tryLoad("pickups/pickup_" + p.name().toLowerCase() + ".png");
             if (tx != null) pickupTex.put(p, tx);
         }
+
+        // Weapon icons
         for (WeaponType w : WeaponType.values()) {
             Texture tx = tryLoad("weapons/weapon_" + w.name().toLowerCase() + ".png");
             if (tx != null) weaponTex.put(w, tx);
         }
+
+        // ── Player skins (256×256: 4 dir rows × 4 frame cols of 64×64) ──────
+        for (int i = 0; i < SKIN_COUNT; i++) {
+            Texture tx = tryLoad("characters/skin_" + i + ".png");
+            if (tx != null) {
+                tx.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+                skinTex[i] = tx;
+                for (int d = 0; d < DIR_COUNT; d++) {
+                    for (int f = 0; f < WALK_FRAME_COUNT; f++) {
+                        // srcX = column * 64, srcY = row * 64 (LibGDX Y=0 is top of texture)
+                        skinFrames[i][d][f] = new TextureRegion(tx, f * 64, d * 64, 64, 64);
+                    }
+                }
+            }
+        }
+
+        // Legacy single-sprite fallbacks (used only if skin sheets are absent)
         playerLocalTex = tryLoad("characters/player_local.png");
         playerEnemyTex = tryLoad("characters/player_enemy.png");
         overheadTex    = tryLoad("characters/overhead_top.png");
+
+        // Chests
         chestTex[0]    = tryLoad("chests/chest_0.png");
         chestTex[1]    = tryLoad("chests/chest_1.png");
-        chestOpenTex   = tryLoad("chests/chest_open.png");
+        for (int v = 0; v < 2; v++) {
+            chestOpenFrames[v][0] = tryLoad("chests/chest_" + v + "_open_1.png");
+            chestOpenFrames[v][1] = tryLoad("chests/chest_" + v + "_open_2.png");
+            chestOpenFrames[v][2] = tryLoad("chests/chest_" + v + "_open.png");
+        }
+
+        // Projectiles
         projBulletTex  = tryLoad("projectiles/bullet.png");
         projArrowTex   = tryLoad("projectiles/arrow.png");
         projFlameTex   = tryLoad("projectiles/flame.png");
 
+        // Sound
         try {
             com.badlogic.gdx.files.FileHandle fh = Gdx.files.internal("sound\\damage_effect.mp3");
             if (fh.exists()) {

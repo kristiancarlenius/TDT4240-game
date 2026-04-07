@@ -14,6 +14,7 @@ public final class PreferencesRepository implements PreferencesPort {
     private static final String KEY_SOUND_ENABLED   = "sound_enabled";
     private static final String KEY_MUSIC_ENABLED   = "music_enabled";
     private static final String KEY_CONTROLS_SWAPPED = "controls_swapped";
+    private static final String KEY_SKIN_ID          = "skin_id";
 
     /** Default widget for each slot ordinal: LEFT→KILL_FEED, CENTER→TIME_ALIVE, RIGHT→LEADERBOARD */
     private static final HudWidget[] HUD_DEFAULTS = {
@@ -86,6 +87,17 @@ public final class PreferencesRepository implements PreferencesPort {
     @Override
     public void setControlsSwapped(boolean swapped) {
         prefs.putBoolean(KEY_CONTROLS_SWAPPED, swapped);
+        prefs.flush();
+    }
+
+    @Override
+    public int getSkinId() {
+        return prefs.getInteger(KEY_SKIN_ID, 0);
+    }
+
+    @Override
+    public void setSkinId(int skinId) {
+        prefs.putInteger(KEY_SKIN_ID, Math.max(0, Math.min(3, skinId)));
         prefs.flush();
     }
 }

@@ -54,6 +54,16 @@ public final class PlayerDto {
     /** Kills accumulated since the last respawn (resets to 0 on death). */
     public int killsThisLife;
 
+    /** Skin index (0–3) chosen by the player. Determines which spritesheet is used. */
+    public int skinId;
+
+    /**
+     * Dominant movement direction for sprite orientation.
+     * 0=DOWN, 1=LEFT, 2=UP, 3=RIGHT, -1=idle (use last known direction).
+     * The weapon still rotates freely toward facing; only the body sprite uses this.
+     */
+    public int moveDir = -1;
+
     public PlayerDto() {}
 
     public PlayerDto(String playerId, String username, Vec2 pos, Vec2 vel, Vec2 facing,

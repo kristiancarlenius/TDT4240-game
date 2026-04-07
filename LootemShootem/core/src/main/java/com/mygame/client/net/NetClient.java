@@ -12,13 +12,15 @@ public final class NetClient {
 
     private final String             serverUrl;
     private final String             username;
+    private final int                skinId;
     private final NetListener        listener;
     private final WebSocketTransport transport = new WebSocketTransport();
     private final NetMapper          mapper    = new NetMapper();
 
-    public NetClient(String serverUrl, String username, NetListener listener) {
+    public NetClient(String serverUrl, String username, int skinId, NetListener listener) {
         this.serverUrl = serverUrl;
         this.username  = username;
+        this.skinId    = skinId;
         this.listener  = listener;
     }
 
@@ -26,7 +28,7 @@ public final class NetClient {
         transport.connect(serverUrl, new WebSocketTransport.Listener() {
             @Override
             public void onOpen() {
-                transport.send(mapper.encode(new JoinRequest(username)));
+                transport.send(mapper.encode(new JoinRequest(username, skinId)));
             }
 
             @Override

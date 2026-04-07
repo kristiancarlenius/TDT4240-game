@@ -24,8 +24,8 @@ public final class GameSessionService implements NetListener {
         this.onDisconnected = onDisconnected;
     }
 
-    public void connect(String serverUrl, String username) {
-        net = new NetClient(serverUrl, username, this);
+    public void connect(String serverUrl, String username, int skinId) {
+        net = new NetClient(serverUrl, username, skinId, this);
         net.connectAsync();
     }
 

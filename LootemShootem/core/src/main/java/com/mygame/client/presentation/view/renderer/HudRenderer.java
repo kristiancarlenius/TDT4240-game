@@ -14,8 +14,11 @@ import com.mygame.client.domain.model.HudWidget;
 import com.mygame.client.domain.model.WorldState;
 import com.mygame.client.domain.ports.PreferencesPort;
 import com.mygame.client.presentation.view.input.InputHandler;
+import com.mygame.shared.dto.ChestDto;
 import com.mygame.shared.dto.GameSnapshotDto;
+import com.mygame.shared.dto.MapDto;
 import com.mygame.shared.dto.PlayerDto;
+import com.mygame.shared.dto.TileType;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -54,6 +57,13 @@ public final class HudRenderer {
     private float prevHp          = -1f;
     private float healFlashTimer  = 0f;
     private static final float HEAL_FLASH_DURATION = 0.5f;
+
+    // ── Minimap ──────────────────────────────────────────────────────────────
+    private static final int   MINI_SIZE         = 120;
+    private static final int   MINI_SIZE_EXPANDED = 240;
+    private static final int   MINI_MARGIN       = 10;
+    private static final float MINI_ALPHA        = 0.70f;
+    private boolean            minimapExpanded   = false;
 
     public HudRenderer(WorldState worldState,
                        InputHandler inputHandler,
@@ -105,6 +115,9 @@ public final class HudRenderer {
         if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
             leaderboardMode = (leaderboardMode + 1) % LB_MODES;
         }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.M)) {
+            minimapExpanded = !minimapExpanded;
+        }
         if (Gdx.input.justTouched()) {
             int tx = Gdx.input.getX();
             int ty = Gdx.graphics.getHeight() - Gdx.input.getY();
@@ -152,6 +165,8 @@ public final class HudRenderer {
         drawPickupToast();
 
         if (inputHandler.isAndroid()) drawTouchControls();
+
+        drawMinimap();
     }
 
     // ── Health + speed bars ──────────────────────────────────────────────────
@@ -484,6 +499,107 @@ public final class HudRenderer {
         font.draw(batch, "R",
                 inputHandler.reloadBtnX - layout.width / 2f,
                 inputHandler.reloadBtnY + layout.height / 2f);
+        batch.end();
+    }
+
+    // ── Minimap ───────────────────────────────────────────────────────────────
+
+    private void drawMinimap() {
+        MapDto          map    = worldState.getMap();
+        GameSnapshotDto snap   = worldState.getSnapshot();
+        if (map == null || map.tiles == null) return;
+
+        int sw       = Gdx.graphics.getWidth();
+        int miniSize = minimapExpanded ? MINI_SIZE_EXPANDED : MINI_SIZE;
+        float miniX  = sw - miniSize - MINI_MARGIN;
+        float miniY  = MINI_MARGIN;
+        float scaleX = (float) miniSize / map.width;
+        float scaleY = (float) miniSize / map.height;
+        String localId = worldState.getLocalPlayerId();
+
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.setProjectionMatrix(screenProj);
+
+        // ── Background ──────────────────────────────────────────────────────
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0f, 0f, 0f, MINI_ALPHA);
+        shapes.rect(miniX, miniY, miniSize, miniSize);
+
+        // ── Tiles ───────────────────────────────────────────────────────────
+        for (int ty = 0; ty < map.height; ty++) {
+            for (int tx = 0; tx < map.width; tx++) {
+                TileType tile = map.tiles[ty * map.width + tx];
+                if (tile == null || tile == TileType.FLOOR) continue;
+                switch (tile) {
+                    case WALL:
+                        shapes.setColor(0.40f, 0.40f, 0.46f, 1f);
+                        break;
+                    case WINDOW:
+                        if (!minimapExpanded) continue;
+                        shapes.setColor(0.25f, 0.70f, 0.90f, 0.85f);
+                        break;
+                    case TRAP:
+                        if (!minimapExpanded) continue;
+                        shapes.setColor(0.90f, 0.40f, 0.10f, 0.85f);
+                        break;
+                    case COBWEB:
+                        if (!minimapExpanded) continue;
+                        shapes.setColor(0.60f, 0.55f, 0.45f, 0.80f);
+                        break;
+                    default:
+                        continue;
+                }
+                shapes.rect(
+                    miniX + tx * scaleX,
+                    miniY + ty * scaleY,
+                    Math.max(1f, scaleX),
+                    Math.max(1f, scaleY));
+            }
+        }
+
+        // ── Chests ──────────────────────────────────────────────────────────
+        if (snap != null && snap.chests != null) {
+            float cs = Math.max(2.5f, scaleX * 0.9f);
+            for (ChestDto chest : snap.chests) {
+                if (chest == null || chest.pos == null) continue;
+                float cx = miniX + chest.pos.x * scaleX;
+                float cy = miniY + chest.pos.y * scaleY;
+                shapes.setColor(chest.isOpen
+                    ? new Color(0.55f, 0.55f, 0.55f, 0.9f)
+                    : new Color(1.00f, 0.82f, 0.10f, 1.0f));
+                shapes.rect(cx - cs * 0.5f, cy - cs * 0.5f, cs, cs);
+            }
+        }
+
+        // ── Players ─────────────────────────────────────────────────────────
+        if (snap != null && snap.players != null) {
+            float pr = Math.max(2f, scaleX * 0.65f);
+            for (PlayerDto p : snap.players) {
+                if (p == null || p.pos == null || p.isDead) continue;
+                boolean isMe = localId != null && localId.equals(p.playerId);
+                float px = miniX + p.pos.x * scaleX;
+                float py = miniY + p.pos.y * scaleY;
+                shapes.setColor(isMe
+                    ? new Color(0.20f, 0.95f, 0.30f, 1f)
+                    : new Color(0.95f, 0.20f, 0.20f, 1f));
+                shapes.circle(px, py, pr, 8);
+            }
+        }
+
+        shapes.end();
+
+        // ── Border ──────────────────────────────────────────────────────────
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        shapes.setColor(1f, 1f, 1f, 0.80f);
+        shapes.rect(miniX, miniY, miniSize, miniSize);
+        shapes.end();
+
+        // ── "M" hint label ──────────────────────────────────────────────────
+        batch.setProjectionMatrix(screenProj);
+        batch.begin();
+        font.setColor(0.65f, 0.65f, 0.65f, 0.65f);
+        font.draw(batch, "[M]", miniX + 3f, miniY + miniSize - 2f);
         batch.end();
     }
 

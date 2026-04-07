@@ -83,7 +83,14 @@ public final class ChestSystem {
         updateRespawns();
 
         for (ChestState chest : new ArrayList<>(state.chests)) {
-            checkInteraction(chest);
+            if (chest.isOpen) {
+                chest.openTimer -= dt;
+                if (chest.openTimer <= 0f) {
+                    state.chests.remove(chest);
+                }
+            } else {
+                checkInteraction(chest);
+            }
         }
     }
 
@@ -137,7 +144,8 @@ public final class ChestSystem {
     private void openChest(ChestState chest, PlayerState player) {
         player.chestFreezeTimer = 0.2f;
         applyLoot(chest, player);
-        state.chests.remove(chest);
+        chest.isOpen    = true;
+        chest.openTimer = 2f;   // chest stays visible as open for 2 seconds
         addFreeSpawnPoint(chest.pos);
         // Respawn is decoupled from the chest instance; we only schedule a new
         // spawn event and let the queue decide when to create it.

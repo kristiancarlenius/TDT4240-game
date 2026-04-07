@@ -63,7 +63,7 @@ public final class MessageRouter {
 
             if (msg instanceof JoinRequest) {
                 JoinRequest   join     = (JoinRequest) msg;
-                JoinAccepted  accepted = joinUseCase.execute(join.username);
+                JoinAccepted  accepted = joinUseCase.execute(join.username, join.skinId);
                 if (accepted == null) {
                     conn.send(codec.encode(
                             new ErrorMessage("bad_request", "username is required")));
