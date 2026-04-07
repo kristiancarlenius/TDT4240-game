@@ -6,7 +6,7 @@ import com.mygame.client.GameClientApp;
 
 public final class DesktopLauncher {
     public static void main(String[] args) {
-        String url = System.getenv().getOrDefault("SERVER_URL", "ws://localhost:8080/ws");
+        String url = System.getenv().getOrDefault("SERVER_URL", "wss://carleniusai.no/ws");
         String user = System.getenv().getOrDefault("USERNAME", "player_" + (int)(Math.random() * 1000));
 
         Lwjgl3ApplicationConfiguration cfg = new Lwjgl3ApplicationConfiguration();
