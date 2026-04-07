@@ -29,7 +29,7 @@ public final class HandleJoinUseCase {
      * @return the {@link JoinAccepted} payload to send back, or {@code null} if
      *         the server is full or the username is invalid after sanitising.
      */
-    public JoinAccepted execute(String rawUsername) {
+    public JoinAccepted execute(String rawUsername, int skinId) {
         if (matchService.getPlayerCount() >= maxPlayers) {
             System.out.println("[JOIN] Rejected (server full)");
             return null;
@@ -38,7 +38,7 @@ public final class HandleJoinUseCase {
         String clean = sanitise(rawUsername);
         if (clean == null) return null;
 
-        String playerId = matchService.addPlayer(clean);
+        String playerId = matchService.addPlayer(clean, skinId);
         return matchService.buildJoinAccepted(playerId);
     }
 

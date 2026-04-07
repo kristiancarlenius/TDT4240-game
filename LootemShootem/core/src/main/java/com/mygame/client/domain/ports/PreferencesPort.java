@@ -18,4 +18,8 @@ public interface PreferencesPort {
 
     boolean isControlsSwapped();
     void setControlsSwapped(boolean swapped);
+
+    /** Skin index (0–3) chosen by the player. */
+    int  getSkinId();
+    void setSkinId(int skinId);
 }

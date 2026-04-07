@@ -63,13 +63,26 @@ public final class ServerWorldStepSystem {
             Vec2         aim  = (in != null && in.aim  != null) ? in.aim  : Vec2.zero();
 
             // Freeze movement briefly after opening a chest
+            Vec2 moveVec;
             if (p.chestFreezeTimer > 0f) {
                 p.chestFreezeTimer -= dt;
                 collisionSystem.applyMovement(p, Vec2.zero(), aim, dt);
+                moveVec = Vec2.zero();
             } else {
-                Vec2 move = (in != null && in.move != null) ? in.move : Vec2.zero();
-                collisionSystem.applyMovement(p, move, aim, dt);
+                moveVec = (in != null && in.move != null) ? in.move : Vec2.zero();
+                collisionSystem.applyMovement(p, moveVec, aim, dt);
             }
+
+            // Update dominant movement direction (for 4-way sprite orientation)
+            float mx = moveVec.x, my = moveVec.y;
+            if (Math.abs(mx) > 0.1f || Math.abs(my) > 0.1f) {
+                if (Math.abs(mx) >= Math.abs(my)) {
+                    p.moveDir = mx > 0 ? 3 : 1; // RIGHT or LEFT
+                } else {
+                    p.moveDir = my > 0 ? 2 : 0; // UP or DOWN
+                }
+            }
+            // When idle (moveVec ≈ zero), moveDir stays at its last value — body keeps facing that direction.
 
             tickReload(p, in, dt);
 

@@ -64,6 +64,15 @@ public final class PlayerState {
     /** Movement freeze after opening a chest (seconds). */
     public float chestFreezeTimer = 0f;
 
+    /** Skin index (0–3) chosen by the player at login. */
+    public int skinId = 0;
+
+    /**
+     * Dominant movement direction: 0=DOWN, 1=LEFT, 2=UP, 3=RIGHT, -1=idle.
+     * Updated every tick from vel; persists so idle pose keeps last direction.
+     */
+    public int moveDir = 2; // default UP (facing camera on spawn)
+
     public String lastPickupNotice;
 
     public PlayerState(String playerId, String username, Vec2 spawnPos) {
@@ -104,6 +113,8 @@ public final class PlayerState {
         dto.secondaryAmmo       = ammoBySlot[sec];
         dto.secondaryMags       = magsBySlot[sec];
         dto.lastPickupNotice    = lastPickupNotice;
+        dto.skinId              = skinId;
+        dto.moveDir             = moveDir;
         return dto;
     }
 }

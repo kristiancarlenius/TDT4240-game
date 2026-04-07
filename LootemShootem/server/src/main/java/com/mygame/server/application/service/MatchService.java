@@ -50,16 +50,17 @@ public final class MatchService {
 
     // ── Player management ────────────────────────────────────────────────────
 
-    public String addPlayer(String username) {
+    public String addPlayer(String username, int skinId) {
         String id    = UUID.randomUUID().toString();
         Vec2   spawn = state.findSafeSpawn();
         PlayerState ps    = new PlayerState(id, username, spawn);
+        ps.skinId         = Math.max(0, Math.min(3, skinId));
         WeaponSpec  cross = weaponRegistry.get(WeaponType.CROSSBOW);
         ps.ammoBySlot[0]  = cross.maxAmmo;
         ps.magsBySlot[0]  = cross.numMagazines;
         ps.syncEquipped();
         state.players.put(id, ps);
-        System.out.println("[MATCH] Joined: " + username + "  id=" + id + "  spawn=" + spawn);
+        System.out.println("[MATCH] Joined: " + username + "  id=" + id + "  spawn=" + spawn + "  skin=" + skinId);
         return id;
     }
 

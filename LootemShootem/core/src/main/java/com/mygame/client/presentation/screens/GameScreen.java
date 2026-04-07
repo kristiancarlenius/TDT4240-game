@@ -98,7 +98,7 @@ public final class GameScreen implements Screen {
             System.err.println("[AUDIO] Error loading music: " + e.getMessage());
         }
 
-        session.connect(serverUrl, username);
+        session.connect(serverUrl, username, prefs.getSkinId());
     }
 
     @Override
