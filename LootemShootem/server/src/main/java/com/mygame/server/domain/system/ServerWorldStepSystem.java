@@ -48,6 +48,7 @@ public final class ServerWorldStepSystem {
         chestSystem.update(dt);
         pickupSpawnSystem.update(state.tick);
         playerSystem.update(dt);
+        projectileSystem.update(dt);
 
         for (PlayerState p : state.players.values()) {
             if (p.isDead) {
@@ -112,7 +113,6 @@ public final class ServerWorldStepSystem {
             }
         }
 
-        projectileSystem.update(dt);
     }
 
     // ── Reload ───────────────────────────────────────────────────────────────
@@ -148,6 +148,7 @@ public final class ServerWorldStepSystem {
     // ── Death drop ───────────────────────────────────────────────────────────
 
     private void dropLoot(PlayerState p) {
+        System.out.println("[DROP] dropLoot called for " + p.username + " at " + p.pos);
         int bestWeaponTier = 0;
         WeaponType bestWeapon    = null;
         int        bestWeaponAmmo = 0;
@@ -168,24 +169,28 @@ public final class ServerWorldStepSystem {
         int speedScore  = p.speedTier;
         int healthScore = p.healthTier / 2;
 
+        // 3 ticks immunity (0.15s at 20Hz) — just enough to avoid same-tick self-collection
+        long immune = state.tick + 3;
+
         if (bestWeaponTier == 0) {
-            // Nothing worth dropping — always leave a heal
             state.pickups.add(new PickupState(UUID.randomUUID().toString(), PickupType.HEALTH,
-                    new Vec2(p.pos.x, p.pos.y), 25, 0f, null, 0));
+                    new Vec2(p.pos.x, p.pos.y), 25, 0f, null, 0, 0, immune));
+            System.out.println("[DROP] spawned HEALTH pickup at " + p.pos + "  total pickups=" + state.pickups.size());
             return;
         }
 
-        int best = Math.max(bestWeaponTier, Math.max(speedScore, healthScore));
-
         if (bestWeaponTier >= speedScore && bestWeaponTier >= healthScore && bestWeapon != null) {
             state.pickups.add(new PickupState(UUID.randomUUID().toString(), PickupType.WEAPON,
-                    new Vec2(p.pos.x, p.pos.y), 0, 0f, bestWeapon, bestWeaponAmmo, bestWeaponMags));
+                    new Vec2(p.pos.x, p.pos.y), 0, 0f, bestWeapon, bestWeaponAmmo, bestWeaponMags, immune));
+            System.out.println("[DROP] spawned WEAPON(" + bestWeapon + ") pickup at " + p.pos + "  total pickups=" + state.pickups.size());
         } else if (speedScore >= healthScore) {
             state.pickups.add(new PickupState(UUID.randomUUID().toString(), PickupType.SPEED,
-                    new Vec2(p.pos.x, p.pos.y), 0, 0f, null, 0));
+                    new Vec2(p.pos.x, p.pos.y), 0, 0f, null, 0, 0, immune));
+            System.out.println("[DROP] spawned SPEED pickup at " + p.pos + "  total pickups=" + state.pickups.size());
         } else {
             state.pickups.add(new PickupState(UUID.randomUUID().toString(), PickupType.HEALTH,
-                    new Vec2(p.pos.x, p.pos.y), 40, 0f, null, 0));
+                    new Vec2(p.pos.x, p.pos.y), 40, 0f, null, 0, 0, immune));
+            System.out.println("[DROP] spawned HEALTH(40) pickup at " + p.pos + "  total pickups=" + state.pickups.size());
         }
     }
 

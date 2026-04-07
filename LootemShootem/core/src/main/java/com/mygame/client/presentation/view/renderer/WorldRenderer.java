@@ -237,10 +237,11 @@ public final class WorldRenderer {
             if (p == null || p.pos == null) continue;
             // Resolve best texture: weapon-specific > generic pickup > shape fallback
             if (resolvePickupTexture(p) != null) continue;
+            float bobOffset = (float) Math.sin(time * 3.0f + p.pos.x + p.pos.y) * 0.12f;
             shapes.setColor(0.10f, 0.10f, 0.10f, 1f);
-            shapes.circle(p.pos.x, p.pos.y, 0.38f, 16);
+            shapes.circle(p.pos.x, p.pos.y + bobOffset, 0.38f, 16);
             setPickupColor(p.type);
-            shapes.circle(p.pos.x, p.pos.y, 0.28f, 16);
+            shapes.circle(p.pos.x, p.pos.y + bobOffset, 0.28f, 16);
         }
     }
 
@@ -250,13 +251,28 @@ public final class WorldRenderer {
             if (p == null || p.pos == null) continue;
             Texture tx = resolvePickupTexture(p);
             if (tx == null) continue;
+
+            // Bob offset: each pickup desynchronised by its position so they don't float in unison
+            float bobSpeed  = (p.type == PickupType.HEALTH) ? 4.0f : 3.0f;
+            float bobRange  = (p.type == PickupType.HEALTH) ? 0.18f : 0.12f;
+            float bobOffset = (float) Math.sin(time * bobSpeed + p.pos.x + p.pos.y) * bobRange;
+
             if (p.type == PickupType.WEAPON && tx == weaponTex.get(p.weaponType)) {
-                // Draw gun sprites with correct aspect ratio so they look like guns on the ground
+                // Weapon pickups: correct aspect ratio + slow rotation
+                float angle = (time * 45f) % 360f;
                 float h = 0.5f;
                 float w = (tx.getHeight() > 0) ? h * tx.getWidth() / (float) tx.getHeight() : h;
-                batch.draw(tx, p.pos.x - w * 0.5f, p.pos.y - h * 0.5f, w, h);
+                float cx = p.pos.x;
+                float cy = p.pos.y + bobOffset;
+                batch.draw(tx,
+                    cx - w * 0.5f, cy - h * 0.5f,  // position
+                    w * 0.5f, h * 0.5f,             // origin (center for rotation)
+                    w, h,                            // size
+                    1f, 1f,                          // scale
+                    angle,                           // rotation
+                    0, 0, tx.getWidth(), tx.getHeight(), false, false);
             } else {
-                batch.draw(tx, p.pos.x - 0.38f, p.pos.y - 0.38f, 0.76f, 0.76f);
+                batch.draw(tx, p.pos.x - 0.38f, p.pos.y + bobOffset - 0.38f, 0.76f, 0.76f);
             }
         }
     }
