@@ -11,12 +11,12 @@ Players join from a shared server URL, fight over weapon pickups and health pack
 - Java 11
 
 ```bash
-java --version   # must show 11.x
+java --version   # must show 17.x
 ```
 
 Install on Ubuntu if missing:
 ```bash
-sudo apt update && sudo apt install openjdk-11-jdk
+sudo apt update && sudo apt install openjdk-17-jdk
 ```
 
 ---
