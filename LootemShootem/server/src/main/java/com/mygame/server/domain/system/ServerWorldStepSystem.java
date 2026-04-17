@@ -15,6 +15,33 @@ public final class ServerWorldStepSystem {
     private static final float RESPAWN_SECONDS  = 5f;
     /** 0.5 HP/s = 30 HP/min — slow enough that chests matter. */
     private static final float HP_REGEN_PER_SEC = 0.5f;
+    private static final float CHAR_SIZE = 1.72f;
+    private static final float[][][] WEAPON_HAND_ANCHORS = new float[][][] {
+            {
+                    { 0.04f, -0.05f },
+                    { -0.18f, -0.02f },
+                    { 0.06f, 0.02f },
+                    { 0.20f, -0.02f }
+            },
+            {
+                    { 0.05f, -0.05f },
+                    { -0.17f, -0.01f },
+                    { 0.07f, 0.03f },
+                    { 0.21f, -0.01f }
+            },
+            {
+                    { 0.04f, -0.04f },
+                    { -0.19f, -0.01f },
+                    { 0.05f, 0.02f },
+                    { 0.19f, -0.01f }
+            },
+            {
+                    { 0.05f, -0.04f },
+                    { -0.18f, -0.02f },
+                    { 0.06f, 0.03f },
+                    { 0.20f, -0.02f }
+            }
+    };
 
     private final ServerGameState   state;
     private final WeaponRegistry    weaponRegistry;
@@ -210,19 +237,25 @@ public final class ServerWorldStepSystem {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     /** Right-hand perpendicular offset for bullet spawn — mirrors client rendering. */
-    private static float spawnRightDist(WeaponType t) {
-        if (t == null) return 0.70f;
+    private static WeaponRenderSpec weaponRenderSpec(WeaponType t) {
+        if (t == null) return new WeaponRenderSpec(0f, 0f, 1.55f, 0f);
         switch (t) {
-            case CROSSBOW:     return 0.42f;
-            case PISTOL:       return 0.84f;
-            case UZI:          return 0.84f;
-            case AK:           return 0.84f;
-            case MACHINEGUN:   return 0.70f;
-            case SHOTGUN:      return 0.70f;
-            case SNIPER:       return 0.70f;
-            case FLAMETHROWER: return 0.70f;
-            default:           return 0.70f;
+            case CROSSBOW:     return new WeaponRenderSpec(0.03f, -0.01f, 1.72f, 0f);
+            case PISTOL:       return new WeaponRenderSpec(0.02f, -0.05f, 1.82f, 0f);
+            case UZI:          return new WeaponRenderSpec(0.02f, -0.04f, 1.62f, 0f);
+            case AK:           return new WeaponRenderSpec(0.03f, -0.04f, 1.62f, 0f);
+            case MACHINEGUN:   return new WeaponRenderSpec(0.04f, -0.02f, 1.74f, 0f);
+            case SHOTGUN:      return new WeaponRenderSpec(0.03f, -0.03f, 1.78f, 0f);
+            case SNIPER:       return new WeaponRenderSpec(0.04f, -0.04f, 1.68f, 0f);
+            case FLAMETHROWER: return new WeaponRenderSpec(0.03f, -0.03f, 1.68f, 0f);
+            default:           return new WeaponRenderSpec(0f, 0f, 1.55f, 0f);
         }
+    }
+
+    private static float[] resolveHandAnchor(PlayerState p) {
+        int skinId = Math.max(0, Math.min(3, p.skinId));
+        int dir = (p.moveDir >= 0 && p.moveDir < 4) ? p.moveDir : 2;
+        return WEAPON_HAND_ANCHORS[skinId][dir];
     }
 
     /** Weapon tier for drop-ranking. Package-visible so ChestSystem can share it. */
@@ -240,19 +273,27 @@ public final class ServerWorldStepSystem {
     }
 
     private void spawnProjectiles(PlayerState p, WeaponSpec spec) {
-        // Offset spawn to match the per-weapon visual barrel position
-        float rd = spawnRightDist(p.equippedWeaponType);
-        float rightOffX =  p.facing.y * rd;
-        float rightOffY = -p.facing.x * rd;
+        WeaponRenderSpec renderSpec = weaponRenderSpec(p.equippedWeaponType);
+        float[] handAnchor = resolveHandAnchor(p);
+        float rightX = p.facing.y;
+        float rightY = -p.facing.x;
+        float handX = p.pos.x + (handAnchor[0] + renderSpec.handOffsetX) * CHAR_SIZE;
+        float handY = p.pos.y + (handAnchor[1] + renderSpec.handOffsetY) * CHAR_SIZE;
 
-        // Spawn distance is now closer to the player center (0.75 vs 1.55)
-        // to prevent shooting through walls/enemies. Hitbox is ~0.60.
-        float spawnDist = 0.75f;
-        float sx = p.pos.x + p.facing.x * spawnDist + rightOffX;
-        float sy = p.pos.y + p.facing.y * spawnDist + rightOffY;
-
-        // Don't spawn if already inside a wall
-        if (state.isProjectileBlockedWorld(sx, sy)) return;
+        float sx = handX;
+        float sy = handY;
+        boolean foundSpawn = false;
+        for (float factor = 1f; factor >= 0f; factor -= 0.2f) {
+            float candidateX = handX + p.facing.x * (renderSpec.muzzleForward * factor) + rightX * renderSpec.muzzleSide;
+            float candidateY = handY + p.facing.y * (renderSpec.muzzleForward * factor) + rightY * renderSpec.muzzleSide;
+            if (!state.isProjectileBlockedWorld(candidateX, candidateY)) {
+                sx = candidateX;
+                sy = candidateY;
+                foundSpawn = true;
+                break;
+            }
+        }
+        if (!foundSpawn) return;
 
         int pellets = Math.max(1, spec.pellets);
         for (int k = 0; k < pellets; k++) {
@@ -271,6 +312,20 @@ public final class ServerWorldStepSystem {
                     new Vec2(sx, sy),
                     new Vec2(fx * spec.projectileSpeed, fy * spec.projectileSpeed),
                     spec.damage, spec.projectileRadius, spec.ttlSeconds));
+        }
+    }
+
+    private static final class WeaponRenderSpec {
+        final float handOffsetX;
+        final float handOffsetY;
+        final float muzzleForward;
+        final float muzzleSide;
+
+        WeaponRenderSpec(float handOffsetX, float handOffsetY, float muzzleForward, float muzzleSide) {
+            this.handOffsetX = handOffsetX;
+            this.handOffsetY = handOffsetY;
+            this.muzzleForward = muzzleForward;
+            this.muzzleSide = muzzleSide;
         }
     }
 }

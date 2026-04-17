@@ -53,6 +53,36 @@ public final class WorldRenderer {
     private static final float WALK_THRESHOLD      = 0.05f;
     /** World-units size (width = height) of the rendered player sprite. */
     private static final float CHAR_SIZE           = 1.72f;
+    /**
+     * Per-skin, per-direction hand anchor in character-local space.
+     * x=-0.5 is the left edge, x=0.5 the right edge, y=-0.5 the bottom, y=0.5 the top.
+     */
+    private static final float[][][] WEAPON_HAND_ANCHORS = new float[][][] {
+            {
+                    { 0.04f, -0.05f },
+                    { -0.18f, -0.02f },
+                    { 0.06f, 0.02f },
+                    { 0.20f, -0.02f }
+            },
+            {
+                    { 0.05f, -0.05f },
+                    { -0.17f, -0.01f },
+                    { 0.07f, 0.03f },
+                    { 0.21f, -0.01f }
+            },
+            {
+                    { 0.04f, -0.04f },
+                    { -0.19f, -0.01f },
+                    { 0.05f, 0.02f },
+                    { 0.19f, -0.01f }
+            },
+            {
+                    { 0.05f, -0.04f },
+                    { -0.18f, -0.02f },
+                    { 0.06f, 0.03f },
+                    { 0.20f, -0.02f }
+            }
+    };
 
     private final WorldState         worldState;
     private final OrthographicCamera camera;
@@ -475,19 +505,35 @@ public final class WorldRenderer {
                 false, false);
     }
 
-    /** Per-weapon right-hand offset (perpendicular distance from player centre). */
-    private static float weaponRightDist(WeaponType t) {
-        if (t == null) return 0.45f;
+    private float[] resolveHandAnchor(PlayerDto p) {
+        int skinId = (p.skinId >= 0 && p.skinId < SKIN_COUNT) ? p.skinId : 0;
+        int dir = (p.moveDir >= 0 && p.moveDir < DIR_COUNT)
+                ? p.moveDir
+                : lastMoveDirs.getOrDefault(p.playerId, 2);
+        return WEAPON_HAND_ANCHORS[skinId][dir];
+    }
+
+    private static WeaponRenderSpec weaponRenderSpec(WeaponType t) {
+        if (t == null) return new WeaponRenderSpec(2.3285f, 0.24f, 0.50f, 0f, 0f);
         switch (t) {
-            case CROSSBOW:     return 0.28f;
-            case PISTOL:       return 0.50f;
-            case UZI:          return 0.50f;
-            case AK:           return 0.50f;
-            case MACHINEGUN:   return 0.45f;
-            case SHOTGUN:      return 0.45f;
-            case SNIPER:       return 0.45f;
-            case FLAMETHROWER: return 0.45f;
-            default:           return 0.45f;
+            case CROSSBOW:
+                return new WeaponRenderSpec(2.3285f, 0.20f, 0.48f, 0.03f, -0.01f);
+            case PISTOL:
+                return new WeaponRenderSpec(2.3285f, 0.19f, 0.73f, 0.02f, -0.05f);
+            case UZI:
+                return new WeaponRenderSpec(2.3285f, 0.24f, 0.68f, 0.02f, -0.04f);
+            case AK:
+                return new WeaponRenderSpec(2.3285f, 0.29f, 0.60f, 0.03f, -0.04f);
+            case MACHINEGUN:
+                return new WeaponRenderSpec(2.42f, 0.28f, 0.58f, 0.04f, -0.02f);
+            case SHOTGUN:
+                return new WeaponRenderSpec(2.3285f, 0.25f, 0.62f, 0.03f, -0.03f);
+            case SNIPER:
+                return new WeaponRenderSpec(2.3285f, 0.33f, 0.58f, 0.04f, -0.04f);
+            case FLAMETHROWER:
+                return new WeaponRenderSpec(2.3285f, 0.25f, 0.66f, 0.03f, -0.03f);
+            default:
+                return new WeaponRenderSpec(2.3285f, 0.24f, 0.50f, 0f, 0f);
         }
     }
 
@@ -501,29 +547,46 @@ public final class WorldRenderer {
         Texture wt = weaponTex.get(p.equippedWeaponType);
         if (wt == null) return;
 
+        WeaponRenderSpec spec = weaponRenderSpec(p.equippedWeaponType);
         float angle = (float) Math.toDegrees(Math.atan2(p.facing.y, p.facing.x));
+        float weapW = spec.width;
+        float originX = weapW * spec.gripX;
+        boolean flipY = p.facing.x < 0f;
 
-        float rightDist = weaponRightDist(p.equippedWeaponType);
-        float backDist  = 0.20f;
-        float handX = p.pos.x + ( p.facing.y) * rightDist - p.facing.x * backDist;
-        float handY = p.pos.y + (-p.facing.x) * rightDist - p.facing.y * backDist;
+        float[] handAnchor = resolveHandAnchor(p);
+        float handX = p.pos.x + (handAnchor[0] + spec.handOffsetX) * CHAR_SIZE;
+        float handY = p.pos.y + (handAnchor[1] + spec.handOffsetY) * CHAR_SIZE;
 
-        float weapW = 2.3285f;
         float weapH = (wt.getWidth() > 0)
                 ? weapW * wt.getHeight() / (float) wt.getWidth()
                 : 0.7484f;
-        float origX = 0f;
-        float origY = weapH / 2f;
+        float originY = weapH * spec.gripY;
 
         batch.draw(wt,
-                handX,
-                handY - origY,
-                origX, origY,
+                handX - originX,
+                handY - originY,
+                originX, originY,
                 weapW, weapH,
                 1f, 1f,
                 angle,
                 0, 0, wt.getWidth(), wt.getHeight(),
-                false, false);
+                false, flipY);
+    }
+
+    private static final class WeaponRenderSpec {
+        final float width;
+        final float gripX;
+        final float gripY;
+        final float handOffsetX;
+        final float handOffsetY;
+
+        WeaponRenderSpec(float width, float gripX, float gripY, float handOffsetX, float handOffsetY) {
+            this.width = width;
+            this.gripX = gripX;
+            this.gripY = gripY;
+            this.handOffsetX = handOffsetX;
+            this.handOffsetY = handOffsetY;
+        }
     }
 
     // ── Projectiles ───────────────────────────────────────────────────────────
@@ -553,9 +616,28 @@ public final class WorldRenderer {
             float h = isArrow ? 0.55f : 0.28f;
             float ox = w / 2f;
             float oy = h / 2f;
+            float x = pr.pos.x - ox;
+            float y = pr.pos.y - oy;
+
+            if (tx == projBulletTex || tx == projFlameTex || tx == projArrowTex) {
+                float outlinePad = tx == projBulletTex ? 0.05f : tx == projArrowTex ? 0.06f : 0.03f;
+                batch.setColor(0.08f, 0.08f, 0.08f, 0.90f);
+                batch.draw(tx,
+                        x - outlinePad, y - outlinePad,
+                        ox + outlinePad, oy + outlinePad,
+                        w + outlinePad * 2f, h + outlinePad * 2f,
+                        1f, 1f, angle,
+                        0, 0, tx.getWidth(), tx.getHeight(),
+                        false, false);
+                batch.setColor(Color.WHITE);
+            }
+
+            if (tx == projArrowTex) {
+                batch.setColor(1f, 0.96f, 0.82f, 1f);
+            }
 
             batch.draw(tx,
-                    pr.pos.x - ox, pr.pos.y - oy,
+                    x, y,
                     ox, oy, w, h,
                     1f, 1f, angle,
                     0, 0, tx.getWidth(), tx.getHeight(),

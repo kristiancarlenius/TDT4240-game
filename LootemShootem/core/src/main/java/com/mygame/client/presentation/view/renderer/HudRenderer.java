@@ -476,29 +476,37 @@ public final class HudRenderer {
 
         shapes.setProjectionMatrix(screenProj);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        inputHandler.moveStick.render(shapes);
-        inputHandler.aimStick.render(shapes);
+        inputHandler.getMoveStick().render(shapes);
+        inputHandler.getAimStick().render(shapes);
         shapes.setColor(0.55f, 0.30f, 0.80f, 0.75f);
-        shapes.circle(inputHandler.switchBtnX, inputHandler.switchBtnY, inputHandler.switchBtnR, 24);
+        shapes.circle(inputHandler.getSwitchBtnX(), inputHandler.getSwitchBtnY(), inputHandler.getSwitchBtnR(), 24);
         shapes.setColor(0.35f, 0.15f, 0.55f, 0.85f);
-        shapes.circle(inputHandler.switchBtnX, inputHandler.switchBtnY, inputHandler.switchBtnR - 5f, 24);
+        shapes.circle(inputHandler.getSwitchBtnX(), inputHandler.getSwitchBtnY(), inputHandler.getSwitchBtnR() - 5f, 24);
         shapes.setColor(0.85f, 0.45f, 0.10f, 0.80f);
-        shapes.circle(inputHandler.reloadBtnX, inputHandler.reloadBtnY, inputHandler.reloadBtnR, 24);
+        shapes.circle(inputHandler.getReloadBtnX(), inputHandler.getReloadBtnY(), inputHandler.getReloadBtnR(), 24);
         shapes.setColor(0.60f, 0.28f, 0.05f, 0.90f);
-        shapes.circle(inputHandler.reloadBtnX, inputHandler.reloadBtnY, inputHandler.reloadBtnR - 5f, 24);
+        shapes.circle(inputHandler.getReloadBtnX(), inputHandler.getReloadBtnY(), inputHandler.getReloadBtnR() - 5f, 24);
+        shapes.setColor(0.92f, 0.22f, 0.22f, 0.84f);
+        shapes.circle(inputHandler.getFireBtnX(), inputHandler.getFireBtnY(), inputHandler.getFireBtnR(), 28);
+        shapes.setColor(0.68f, 0.12f, 0.12f, 0.94f);
+        shapes.circle(inputHandler.getFireBtnX(), inputHandler.getFireBtnY(), inputHandler.getFireBtnR() - 6f, 28);
         shapes.end();
 
         batch.setProjectionMatrix(screenProj);
         batch.begin();
         font.setColor(Color.WHITE);
-        layout.setText(font, "SW");
-        font.draw(batch, "SW",
-                inputHandler.switchBtnX - layout.width / 2f,
-                inputHandler.switchBtnY + layout.height / 2f);
-        layout.setText(font, "R");
-        font.draw(batch, "R",
-                inputHandler.reloadBtnX - layout.width / 2f,
-                inputHandler.reloadBtnY + layout.height / 2f);
+        layout.setText(font, "SWP");
+        font.draw(batch, "SWP",
+                inputHandler.getSwitchBtnX() - layout.width / 2f,
+                inputHandler.getSwitchBtnY() + layout.height / 2f);
+        layout.setText(font, "RLD");
+        font.draw(batch, "RLD",
+                inputHandler.getReloadBtnX() - layout.width / 2f,
+                inputHandler.getReloadBtnY() + layout.height / 2f);
+        layout.setText(font, "FIRE");
+        font.draw(batch, "FIRE",
+                inputHandler.getFireBtnX() - layout.width / 2f,
+                inputHandler.getFireBtnY() + layout.height / 2f);
         batch.end();
     }
 
