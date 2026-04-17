@@ -3,58 +3,56 @@ package com.mygame.client.presentation.view.input;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.mygame.shared.util.Vec2;
 
-/**
- * Self-contained on-screen joystick for touch input.
- *
- * Usage per frame:
- *   1. Route touch events: touchDown / touchDragged / touchUp
- *      (all coordinates in LibGDX screen space: origin top-left, Y grows down)
- *   2. Call render() during the HUD (screen-space) ShapeRenderer pass.
- *   3. Call getDirection() to read the normalised Vec2 (zero when idle).
- *
- * The component converts from LibGDX screen-Y (top-left origin) to
- * bottom-left origin internally so callers need not care.
- */
 public final class VirtualJoystickView {
 
-    // Visual radii (pixels)
-    private static final float BASE_RADIUS  = 80f;
-    private static final float THUMB_RADIUS = 36f;
+    private static final float BASE_RADIUS_DEFAULT = 80f;
+    private static final float THUMB_RATIO = 0.45f;
 
-    // Centre of the base circle in bottom-left-origin pixels
-    private final float baseX;
-    private final float baseY;
+    private float baseX;
+    private float baseY;
+    private float baseRadius = BASE_RADIUS_DEFAULT;
+    private float thumbRadius = BASE_RADIUS_DEFAULT * THUMB_RATIO;
+    private float opacity = 0.78f;
 
-    // Current thumb offset (bottom-left-origin) — zero when idle
     private float thumbX = 0f;
     private float thumbY = 0f;
-
-    // Which pointer owns this stick (-1 = free)
     private int ownerPointer = -1;
 
-    /**
-     * @param centerX  X of the base centre in screen pixels (left = 0)
-     * @param centerY  Y of the base centre in bottom-left-origin pixels
-     */
     public VirtualJoystickView(float centerX, float centerY) {
+        setCenter(centerX, centerY);
+    }
+
+    public void setCenter(float centerX, float centerY) {
         this.baseX = centerX;
         this.baseY = centerY;
     }
 
-    // ---- Touch routing ----
+    public void setVisuals(float scale, float opacity) {
+        this.baseRadius = BASE_RADIUS_DEFAULT * scale;
+        this.thumbRadius = baseRadius * THUMB_RATIO;
+        this.opacity = opacity;
+        clampThumb();
+    }
 
-    /**
-     * @param screenY LibGDX screen Y (top-left origin); pass Gdx.input.getY() directly.
-     * @param screenH Gdx.graphics.getHeight() — needed for Y-flip.
-     * @return true if this stick claimed the pointer.
-     */
+    public float getBaseX() {
+        return baseX;
+    }
+
+    public float getBaseY() {
+        return baseY;
+    }
+
+    public float getBaseRadius() {
+        return baseRadius;
+    }
+
     public boolean touchDown(int screenX, int screenY, int pointer, int screenH) {
         if (ownerPointer != -1) return false;
         float wx = screenX;
         float wy = screenH - screenY;
         float dx = wx - baseX;
         float dy = wy - baseY;
-        if (dx * dx + dy * dy <= BASE_RADIUS * BASE_RADIUS) {
+        if (dx * dx + dy * dy <= baseRadius * baseRadius) {
             ownerPointer = pointer;
             updateThumb(wx, wy);
             return true;
@@ -72,15 +70,23 @@ public final class VirtualJoystickView {
 
     public boolean touchUp(int screenX, int screenY, int pointer) {
         if (ownerPointer != pointer) return false;
-        ownerPointer = -1;
-        thumbX = 0f;
-        thumbY = 0f;
+        releasePointer(pointer);
         return true;
     }
 
-    // ---- Query ----
+    public void releasePointer(int pointer) {
+        if (ownerPointer != pointer) return;
+        ownerPointer = -1;
+        thumbX = 0f;
+        thumbY = 0f;
+    }
 
-    /** Returns the current direction as a unit vector, or zero if idle. */
+    public void reset() {
+        ownerPointer = -1;
+        thumbX = 0f;
+        thumbY = 0f;
+    }
+
     public Vec2 getDirection() {
         if (thumbX == 0f && thumbY == 0f) return new Vec2(0f, 0f);
         float len2 = thumbX * thumbX + thumbY * thumbY;
@@ -89,47 +95,41 @@ public final class VirtualJoystickView {
         return new Vec2(thumbX * inv, thumbY * inv);
     }
 
+    public float getMagnitude() {
+        float maxR = Math.max(1f, baseRadius - thumbRadius);
+        return Math.min(1f, (float) Math.sqrt(thumbX * thumbX + thumbY * thumbY) / maxR);
+    }
+
     public boolean isActive() {
         return ownerPointer != -1;
     }
 
-    // ---- Render ----
-
-    /**
-     * Draw the joystick using a ShapeRenderer that is already begun with
-     * ShapeType.Filled and has a screen-space projection matrix set.
-     */
     public void render(ShapeRenderer shapes) {
-        // Base circle (dark)
-        shapes.setColor(0.15f, 0.15f, 0.18f, 0.70f);
-        shapes.circle(baseX, baseY, BASE_RADIUS, 32);
+        shapes.setColor(0.10f, 0.10f, 0.12f, opacity * 0.55f);
+        shapes.circle(baseX, baseY, baseRadius, 32);
 
-        // Base ring
-        shapes.setColor(0.35f, 0.35f, 0.45f, 0.85f);
-        shapes.circle(baseX, baseY, BASE_RADIUS, 32);
-        shapes.setColor(0.15f, 0.15f, 0.18f, 0.70f);
-        shapes.circle(baseX, baseY, BASE_RADIUS - 4f, 32);
+        shapes.setColor(0.80f, 0.86f, 0.95f, opacity * 0.28f);
+        shapes.circle(baseX, baseY, baseRadius - 5f, 32);
 
-        // Thumb
         float tx = baseX + thumbX;
         float ty = baseY + thumbY;
-        shapes.setColor(0.55f, 0.65f, 0.90f, 0.90f);
-        shapes.circle(tx, ty, THUMB_RADIUS, 24);
+        shapes.setColor(0.45f, 0.70f, 0.98f, opacity);
+        shapes.circle(tx, ty, thumbRadius, 24);
     }
 
-    // ---- Private ----
-
     private void updateThumb(float wx, float wy) {
-        float dx = wx - baseX;
-        float dy = wy - baseY;
-        float len2 = dx * dx + dy * dy;
-        float maxR = BASE_RADIUS - THUMB_RADIUS;
+        thumbX = wx - baseX;
+        thumbY = wy - baseY;
+        clampThumb();
+    }
+
+    private void clampThumb() {
+        float maxR = Math.max(1f, baseRadius - thumbRadius);
+        float len2 = thumbX * thumbX + thumbY * thumbY;
         if (len2 > maxR * maxR) {
             float inv = maxR / (float) Math.sqrt(len2);
-            dx *= inv;
-            dy *= inv;
+            thumbX *= inv;
+            thumbY *= inv;
         }
-        thumbX = dx;
-        thumbY = dy;
     }
 }

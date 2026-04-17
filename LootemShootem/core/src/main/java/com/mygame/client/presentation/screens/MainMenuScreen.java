@@ -1,5 +1,6 @@
 package com.mygame.client.presentation.screens;
 
+import com.badlogic.gdx.Application;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.Screen;
@@ -117,12 +118,14 @@ public final class MainMenuScreen implements Screen {
             int urlY  = sh / 2 + 60;
             if (hit(screenX, worldY, urlX, urlY, FIELD_W, FIELD_H)) {
                 focusedField = 0;
+                showSoftKeyboardIfNeeded();
                 return true;
             }
             int fieldX = (sw - FIELD_W) / 2;
             int fieldY = sh / 2 - 10;
             if (hit(screenX, worldY, fieldX, fieldY, FIELD_W, FIELD_H)) {
                 focusedField = 1;
+                showSoftKeyboardIfNeeded();
                 return true;
             }
 
@@ -130,6 +133,7 @@ public final class MainMenuScreen implements Screen {
             int btnX = (sw - BTN_W) / 2;
             int btnY = sh / 2 - 90;
             if (hit(screenX, worldY, btnX, btnY, BTN_W, BTN_H)) {
+                hideSoftKeyboardIfNeeded();
                 tryConnect();
                 return true;
             }
@@ -150,6 +154,7 @@ public final class MainMenuScreen implements Screen {
             int howX = (sw - HOW_BTN_W) / 2;
             int howY = howBtnY(sh);
             if (hit(screenX, worldY, howX, howY, HOW_BTN_W, HOW_BTN_H)) {
+                hideSoftKeyboardIfNeeded();
                 navigator.showTutorial(serverUrl, username);
                 return true;
             }
@@ -158,6 +163,7 @@ public final class MainMenuScreen implements Screen {
             int setX = (sw - SET_BTN_W) / 2;
             int setY = setBtnY(sh);
             if (hit(screenX, worldY, setX, setY, SET_BTN_W, SET_BTN_H)) {
+                hideSoftKeyboardIfNeeded();
                 navigator.showSettings(serverUrl, username);
                 return true;
             }
@@ -377,7 +383,9 @@ public final class MainMenuScreen implements Screen {
         // Hint
         font.setColor(0.45f, 0.45f, 0.50f, 1f);
         font.getData().setScale(1.1f);
-        String hint = "TAB to switch fields  •  ENTER to connect";
+        String hint = isAndroid()
+                ? "Tap a field to type  •  Tap CONNECT to join"
+                : "TAB to switch fields  •  ENTER to connect";
         layout.setText(font, hint);
         font.draw(batch, hint, (sw - layout.width) / 2f, btnY - 18f);
         font.getData().setScale(1.5f);
@@ -395,6 +403,7 @@ public final class MainMenuScreen implements Screen {
 
     @Override
     public void hide() {
+        hideSoftKeyboardIfNeeded();
         Gdx.input.setInputProcessor(null);
     }
 
@@ -457,10 +466,23 @@ public final class MainMenuScreen implements Screen {
         String url  = serverUrl.trim();
         String name = username.trim();
         if (!url.isEmpty() && !name.isEmpty()) {
+            hideSoftKeyboardIfNeeded();
             prefs.saveUsername(name);
             prefs.setSkinId(selectedSkin);
             navigator.showGame(url, name);
         }
+    }
+
+    private boolean isAndroid() {
+        return Gdx.app.getType() == Application.ApplicationType.Android;
+    }
+
+    private void showSoftKeyboardIfNeeded() {
+        if (isAndroid()) Gdx.input.setOnscreenKeyboardVisible(true);
+    }
+
+    private void hideSoftKeyboardIfNeeded() {
+        if (isAndroid()) Gdx.input.setOnscreenKeyboardVisible(false);
     }
 
     /** Loads a texture from internal assets. Returns null if missing (no crash). */

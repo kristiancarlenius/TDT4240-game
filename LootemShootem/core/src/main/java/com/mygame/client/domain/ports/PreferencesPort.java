@@ -15,9 +15,17 @@ public interface PreferencesPort {
 
     boolean isMusicEnabled();
     void setMusicEnabled(boolean enabled);
+    float getMusicVolume();
+    void setMusicVolume(float volume);
 
     boolean isControlsSwapped();
     void setControlsSwapped(boolean swapped);
+
+    float getTouchJoystickScale();
+    void setTouchJoystickScale(float scale);
+
+    float getTouchJoystickOpacity();
+    void setTouchJoystickOpacity(float opacity);
 
     /** Skin index (0–3) chosen by the player. */
     int  getSkinId();

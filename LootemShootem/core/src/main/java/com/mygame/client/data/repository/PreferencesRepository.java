@@ -13,7 +13,10 @@ public final class PreferencesRepository implements PreferencesPort {
     private static final String KEY_HUD             = "hud_slot_";
     private static final String KEY_SOUND_ENABLED   = "sound_enabled";
     private static final String KEY_MUSIC_ENABLED   = "music_enabled";
+    private static final String KEY_MUSIC_VOLUME    = "music_volume";
     private static final String KEY_CONTROLS_SWAPPED = "controls_swapped";
+    private static final String KEY_TOUCH_JOYSTICK_SCALE = "touch_joystick_scale";
+    private static final String KEY_TOUCH_JOYSTICK_OPACITY = "touch_joystick_opacity";
     private static final String KEY_SKIN_ID          = "skin_id";
 
     /** Default widget for each slot ordinal: LEFT→KILL_FEED, CENTER→TIME_ALIVE, RIGHT→LEADERBOARD */
@@ -80,6 +83,17 @@ public final class PreferencesRepository implements PreferencesPort {
     }
 
     @Override
+    public float getMusicVolume() {
+        return prefs.getFloat(KEY_MUSIC_VOLUME, 0.5f);
+    }
+
+    @Override
+    public void setMusicVolume(float volume) {
+        prefs.putFloat(KEY_MUSIC_VOLUME, Math.max(0f, Math.min(1f, volume)));
+        prefs.flush();
+    }
+
+    @Override
     public boolean isControlsSwapped() {
         return prefs.getBoolean(KEY_CONTROLS_SWAPPED, false);
     }
@@ -87,6 +101,28 @@ public final class PreferencesRepository implements PreferencesPort {
     @Override
     public void setControlsSwapped(boolean swapped) {
         prefs.putBoolean(KEY_CONTROLS_SWAPPED, swapped);
+        prefs.flush();
+    }
+
+    @Override
+    public float getTouchJoystickScale() {
+        return prefs.getFloat(KEY_TOUCH_JOYSTICK_SCALE, 1.0f);
+    }
+
+    @Override
+    public void setTouchJoystickScale(float scale) {
+        prefs.putFloat(KEY_TOUCH_JOYSTICK_SCALE, Math.max(0.75f, Math.min(1.45f, scale)));
+        prefs.flush();
+    }
+
+    @Override
+    public float getTouchJoystickOpacity() {
+        return prefs.getFloat(KEY_TOUCH_JOYSTICK_OPACITY, 0.78f);
+    }
+
+    @Override
+    public void setTouchJoystickOpacity(float opacity) {
+        prefs.putFloat(KEY_TOUCH_JOYSTICK_OPACITY, Math.max(0.25f, Math.min(1.0f, opacity)));
         prefs.flush();
     }
 

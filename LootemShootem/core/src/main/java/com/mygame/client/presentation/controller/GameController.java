@@ -27,6 +27,7 @@ public final class GameController {
 
     public void update(float delta) {
         inputHandler.pollLatching(); // capture just-pressed keys before the send window fires
+        inputHandler.update(delta);
         PlayerDto me = worldState.getLocalPlayer();
         accumulator += delta;
         while (accumulator >= SEND_DT) {
