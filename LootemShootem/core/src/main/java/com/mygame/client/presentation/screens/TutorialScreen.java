@@ -147,12 +147,12 @@ public final class TutorialScreen implements Screen {
         titleFont.setColor(new Color(1f, 0.82f, 0.15f, 1f));
         String title = "HOW TO PLAY";
         layout.setText(titleFont, title);
-        titleFont.draw(batch, title, (sw - layout.width) / 2f, sh - 48f);
+        titleFont.draw(batch, title, (sw - layout.width) / 2f, sh - 42f * uiScale());
 
         font.setColor(Color.LIGHT_GRAY);
         String pageLabel = "Page " + (currentPage + 1) + " / " + PAGE_COUNT;
         layout.setText(font, pageLabel);
-        font.draw(batch, pageLabel, (sw - layout.width) / 2f, sh - 88f);
+        font.draw(batch, pageLabel, (sw - layout.width) / 2f, sh - 86f * uiScale());
 
         switch (currentPage) {
             case 0:
@@ -175,16 +175,16 @@ public final class TutorialScreen implements Screen {
 
     private void drawControlsPage(int sw, int sh) {
         float marginX = sw * 0.06f;
-        float tableTop = sh - 138f;
-        float tableWidth = sw * 0.88f;
-        float sectionGap = 26f * uiScale();
-        float rowGap = 30f * uiScale();
-        float keyColW = tableWidth * 0.19f;
-        float actionColW = tableWidth * 0.22f;
-        float columnGap = tableWidth * 0.09f;
+        float tableTop = sh - 150f * uiScale();
+        float halfWidth = sw * 0.39f;
+        float sectionGap = 28f * uiScale();
+        float rowGap = 34f * uiScale();
+        float keyColW = halfWidth * 0.42f;
+        float actionColW = halfWidth * 0.52f;
+        float tableGap = sw * 0.06f;
 
         float desktopX = marginX;
-        float androidX = desktopX + keyColW + actionColW + columnGap;
+        float androidX = desktopX + halfWidth + tableGap;
 
         String[][] desktopRows = {
                 { "WASD", "Move" },
@@ -208,13 +208,13 @@ public final class TutorialScreen implements Screen {
         drawControlTable(desktopRows, desktopX, tableTop - sectionGap, keyColW, actionColW, rowGap);
         drawControlTable(androidRows, androidX, tableTop - sectionGap, keyColW, actionColW, rowGap);
 
-        float lowerY = tableTop - rowGap * 7.0f;
+        float lowerY = tableTop - rowGap * 7.2f;
         drawSectionHeader("PICKUPS", marginX, lowerY);
         drawPickupRow(pickupHealTex, "Health restore", marginX, lowerY - sectionGap);
         drawPickupRow(pickupSpeedTex, "Speed boost (5 s)", marginX, lowerY - sectionGap - rowGap);
         drawPickupRow(pickupWeaponTex, "New weapon (fills slot 2)", marginX, lowerY - sectionGap - rowGap * 2f);
 
-        float tipsY = lowerY - rowGap * 3.9f;
+        float tipsY = lowerY - rowGap * 4.3f;
         drawSectionHeader("TIPS", marginX, tipsY);
         drawBulletLine("You carry up to 2 weapons. Switch at any time.", marginX, tipsY - sectionGap, sw * 0.86f);
         drawBulletLine("Dying drops your secondary weapon for other players.", marginX, tipsY - sectionGap - rowGap, sw * 0.86f);
@@ -222,54 +222,63 @@ public final class TutorialScreen implements Screen {
     }
 
     private void drawWeaponsPage(int sw, int sh) {
-        float leftX = sw * 0.06f;
-        float rightX = sw * 0.53f;
-        float startY = sh - 138f;
-        float rowGap = 96f * uiScale();
+        float colWidth = sw * 0.34f;
+        float gap = sw * 0.08f;
+        float totalWidth = colWidth * 2f + gap;
+        float leftX = (sw - totalWidth) * 0.5f;
+        float rightX = leftX + colWidth + gap;
+        float startY = sh - 150f * uiScale();
+        float rowGap = 108f * uiScale();
 
         drawSectionHeader("WEAPON INFO", leftX, startY);
 
         for (int i = 0; i < WEAPONS.length; i++) {
             float columnX = i < 4 ? leftX : rightX;
             float y = startY - 30f * uiScale() - rowGap * (i % 4);
-            drawWeaponRow(WEAPONS[i], columnX, y);
+            drawWeaponRow(WEAPONS[i], columnX, y, colWidth);
         }
     }
 
     private void drawTilesPage(int sw, int sh) {
-        float x = sw * 0.08f;
-        float y = sh - 138f;
-        float rowGap = 92f * uiScale();
+        float contentWidth = sw * 0.72f;
+        float x = (sw - contentWidth) * 0.5f;
+        float y = sh - 150f * uiScale();
+        float rowGap = 102f * uiScale();
 
         drawSectionHeader("TILE INFO", x, y);
         y -= 30f * uiScale();
 
         for (TutorialTile tile : TILES) {
-            drawTileRow(tile, x, y);
+            drawTileRow(tile, x, y, contentWidth);
             y -= rowGap;
         }
     }
 
-    private void drawWeaponRow(TutorialWeapon weapon, float x, float y) {
+    private void drawWeaponRow(TutorialWeapon weapon, float x, float y, float colWidth) {
         Texture texture = textureForWeapon(weapon.assetPath);
+        float iconW = 108f * uiScale();
+        float iconH = 52f * uiScale();
         if (texture != null) {
-            drawImageFit(texture, x, y - 46f * uiScale(), 108f * uiScale(), 52f * uiScale());
+            drawImageFit(texture, x, y - 46f * uiScale(), iconW, iconH);
         }
+        float textX = x + iconW + 18f * uiScale();
         font.setColor(Color.WHITE);
-        font.draw(batch, weapon.name, x + 120f * uiScale(), y);
+        font.draw(batch, weapon.name, textX, y);
         font.setColor(Color.LIGHT_GRAY);
-        drawWrapped(weapon.description, x + 120f * uiScale(), y - 20f * uiScale(), 330f * uiScale());
+        drawWrapped(weapon.description, textX, y - 20f * uiScale(), Math.max(120f, colWidth - (textX - x)));
     }
 
-    private void drawTileRow(TutorialTile tile, float x, float y) {
+    private void drawTileRow(TutorialTile tile, float x, float y, float contentWidth) {
         Texture texture = textureForTile(tile.assetPath);
+        float iconSize = 56f * uiScale();
         if (texture != null) {
-            drawImageFit(texture, x, y - 42f * uiScale(), 56f * uiScale(), 56f * uiScale());
+            drawImageFit(texture, x, y - 42f * uiScale(), iconSize, iconSize);
         }
+        float textX = x + iconSize + 22f * uiScale();
         font.setColor(Color.WHITE);
-        font.draw(batch, tile.name, x + 76f * uiScale(), y);
+        font.draw(batch, tile.name, textX, y);
         font.setColor(Color.LIGHT_GRAY);
-        drawWrapped(tile.description, x + 76f * uiScale(), y - 20f * uiScale(), Gdx.graphics.getWidth() * 0.78f);
+        drawWrapped(tile.description, textX, y - 20f * uiScale(), contentWidth - (textX - x));
     }
 
     private void drawSectionHeader(String label, float x, float y) {
@@ -289,10 +298,10 @@ public final class TutorialScreen implements Screen {
 
     private void drawPickupRow(Texture texture, String text, float x, float y) {
         if (texture != null) {
-            drawImageFit(texture, x, y - 24f * uiScale(), 28f * uiScale(), 28f * uiScale());
+            drawImageFit(texture, x, y - 26f * uiScale(), 32f * uiScale(), 32f * uiScale());
         }
         font.setColor(Color.LIGHT_GRAY);
-        drawWrapped(text, x + 38f * uiScale(), y, Gdx.graphics.getWidth() * 0.72f);
+        drawWrapped(text, x + 42f * uiScale(), y, Gdx.graphics.getWidth() * 0.76f);
     }
 
     private void drawBulletLine(String text, float x, float y, float width) {
@@ -442,7 +451,7 @@ public final class TutorialScreen implements Screen {
 
     private float uiScale() {
         float shortSide = Math.min(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        float scale = Math.max(1.10f, Math.min(1.55f, shortSide / 700f));
+        float scale = Math.max(1.18f, Math.min(1.72f, shortSide / 680f));
         return isMobileLike() ? scale : 1.0f;
     }
 
