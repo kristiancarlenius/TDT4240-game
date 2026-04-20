@@ -255,7 +255,12 @@ public final class ServerWorldStepSystem {
     private static float[] resolveHandAnchor(PlayerState p) {
         int skinId = Math.max(0, Math.min(3, p.skinId));
         int dir = (p.moveDir >= 0 && p.moveDir < 4) ? p.moveDir : 2;
-        return WEAPON_HAND_ANCHORS[skinId][dir];
+        float[] anchor = WEAPON_HAND_ANCHORS[skinId][dir];
+        if (p.facing != null && Math.abs(p.facing.x) > Math.abs(p.facing.y)) {
+            int oppDir = p.facing.x >= 0f ? 1 : 3;
+            return new float[]{ WEAPON_HAND_ANCHORS[skinId][oppDir][0], anchor[1] };
+        }
+        return anchor;
     }
 
     /** Weapon tier for drop-ranking. Package-visible so ChestSystem can share it. */
