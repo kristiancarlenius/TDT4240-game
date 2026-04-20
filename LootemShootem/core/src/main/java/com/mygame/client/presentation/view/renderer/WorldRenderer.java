@@ -507,10 +507,17 @@ public final class WorldRenderer {
 
     private float[] resolveHandAnchor(PlayerDto p) {
         int skinId = (p.skinId >= 0 && p.skinId < SKIN_COUNT) ? p.skinId : 0;
-        int dir = (p.moveDir >= 0 && p.moveDir < DIR_COUNT)
+        int moveD = (p.moveDir >= 0 && p.moveDir < DIR_COUNT)
                 ? p.moveDir
                 : lastMoveDirs.getOrDefault(p.playerId, 2);
-        return WEAPON_HAND_ANCHORS[skinId][dir];
+        float[] anchor = WEAPON_HAND_ANCHORS[skinId][moveD];
+        if (p.facing != null && Math.abs(p.facing.x) > Math.abs(p.facing.y)) {
+            // Use the opposite horizontal anchor's X so the grip stays centered
+            // regardless of whether aim and movement direction are aligned.
+            int oppDir = p.facing.x >= 0f ? 1 : 3;
+            return new float[]{ WEAPON_HAND_ANCHORS[skinId][oppDir][0], anchor[1] };
+        }
+        return anchor;
     }
 
     private static WeaponRenderSpec weaponRenderSpec(WeaponType t) {
