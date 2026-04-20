@@ -642,6 +642,7 @@ public final class WorldRenderer {
                     1f, 1f, angle,
                     0, 0, tx.getWidth(), tx.getHeight(),
                     false, false);
+            batch.setColor(Color.WHITE);
         }
     }
 

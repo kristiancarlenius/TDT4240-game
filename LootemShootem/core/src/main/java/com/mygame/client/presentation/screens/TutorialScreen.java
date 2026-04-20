@@ -19,32 +19,32 @@ public final class TutorialScreen implements Screen {
     private static final int BTN_H = 44;
 
     private final Navigator navigator;
-    private final String    serverUrl;
-    private final String    username;
+    private final String serverUrl;
+    private final String username;
 
     private ShapeRenderer shapes;
-    private SpriteBatch   batch;
-    private BitmapFont    titleFont;
-    private BitmapFont    font;
-    private GlyphLayout   layout;
-    private Matrix4       proj;
+    private SpriteBatch batch;
+    private BitmapFont titleFont;
+    private BitmapFont font;
+    private GlyphLayout layout;
+    private Matrix4 proj;
 
     public TutorialScreen(Navigator navigator, String serverUrl, String username) {
         this.navigator = navigator;
         this.serverUrl = serverUrl;
-        this.username  = username;
+        this.username = username;
     }
 
     @Override
     public void show() {
-        shapes    = new ShapeRenderer();
-        batch     = new SpriteBatch();
+        shapes = new ShapeRenderer();
+        batch = new SpriteBatch();
         titleFont = new BitmapFont();
         titleFont.getData().setScale(2.4f);
         font = new BitmapFont();
         font.getData().setScale(1.4f);
         layout = new GlyphLayout();
-        proj   = new Matrix4();
+        proj = new Matrix4();
         rebuildProj();
 
         Gdx.input.setInputProcessor(new InputAdapter() {
@@ -100,19 +100,21 @@ public final class TutorialScreen implements Screen {
 
         float col1 = sw * 0.12f;
         float col2 = sw * 0.52f;
-        float y    = sh - 140f;
-        float gap  = 34f;
+        float y = sh - 140f;
+        float gap = 34f;
 
         font.setColor(new Color(0.6f, 0.8f, 1f, 1f));
-        font.draw(batch, "DESKTOP",    col1, y);
-        font.draw(batch, "ANDROID",    col2, y);
+        font.draw(batch, "DESKTOP", col1, y);
+        font.draw(batch, "ANDROID", col2, y);
         y -= gap;
 
         String[][] rows = {
-            { "WASD",         "Left joystick",   "Move" },
-            { "Mouse + LMB",  "Right joystick",  "Aim & shoot" },
-            { "Space",        "SW button",        "Switch weapon" },
-            { "Escape",       "Back",             "Return to menu" },
+                { "WASD", "Left joystick", "Move" },
+                { "Mouse + LMB", "Right joystick", "Aim" },
+                { "Space", "SWAP button", "Switch weapon" },
+                { "R", "LOAD button", "Reload" },
+                { "Escape", "Back", "Return to menu" },
+                { "-", "FIRE button", "Shoot" },
         };
 
         for (String[] row : rows) {
@@ -131,14 +133,14 @@ public final class TutorialScreen implements Screen {
         y -= gap;
 
         String[][] pickupRows = {
-            { "Green circle",  "Health restore" },
-            { "Cyan circle",   "Speed boost (5 s)" },
-            { "Orange circle", "New weapon (fills slot 2)" },
+                { "Green circle", "Health restore" },
+                { "Cyan circle", "Speed boost (5 s)" },
+                { "Orange circle", "New weapon (fills slot 2)" },
         };
 
         for (String[] row : pickupRows) {
             font.setColor(Color.LIGHT_GRAY);
-            font.draw(batch, row[0] + "  —  " + row[1], col1, y);
+            font.draw(batch, row[0] + "  -  " + row[1], col1, y);
             y -= gap;
         }
 
@@ -149,7 +151,7 @@ public final class TutorialScreen implements Screen {
         font.setColor(Color.LIGHT_GRAY);
         font.draw(batch, "You carry up to 2 weapons. Switch between them anytime.", col1, y);
         y -= gap;
-        font.draw(batch, "Dying drops your secondary weapon — someone else will grab it.", col1, y);
+        font.draw(batch, "Dying drops your secondary weapon - someone else will grab it.", col1, y);
         y -= gap;
         font.draw(batch, "Health slowly regenerates while alive.", col1, y);
 
@@ -161,14 +163,16 @@ public final class TutorialScreen implements Screen {
     }
 
     @Override public void resize(int w, int h) { rebuildProj(); }
-    @Override public void pause()  {}
+    @Override public void pause() {}
     @Override public void resume() {}
-    @Override public void hide()   { Gdx.input.setInputProcessor(null); }
-    @Override public void dispose() {
-        if (shapes    != null) shapes.dispose();
-        if (batch     != null) batch.dispose();
+    @Override public void hide() { Gdx.input.setInputProcessor(null); }
+
+    @Override
+    public void dispose() {
+        if (shapes != null) shapes.dispose();
+        if (batch != null) batch.dispose();
         if (titleFont != null) titleFont.dispose();
-        if (font      != null) font.dispose();
+        if (font != null) font.dispose();
     }
 
     private void rebuildProj() {
