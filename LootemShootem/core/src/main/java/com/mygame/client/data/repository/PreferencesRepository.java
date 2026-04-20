@@ -45,13 +45,22 @@ public final class PreferencesRepository implements PreferencesPort {
 
     @Override
     public HudWidget getHudWidget(HudSlot slot) {
-        String stored = prefs.getString(KEY_HUD + slot.ordinal(),
-                HUD_DEFAULTS[slot.ordinal()].name());
-        try {
-            return HudWidget.valueOf(stored);
-        } catch (Exception e) {
-            return HUD_DEFAULTS[slot.ordinal()];
+        String stored = prefs.getString(KEY_HUD + slot.ordinal(), null);
+        if (stored != null) {
+            try {
+                return HudWidget.valueOf(stored);
+            } catch (Exception e) {
+                resetHudToDefaults();
+            }
         }
+        return HUD_DEFAULTS[slot.ordinal()];
+    }
+
+    private void resetHudToDefaults() {
+        for (HudSlot s : HudSlot.values()) {
+            prefs.putString(KEY_HUD + s.ordinal(), HUD_DEFAULTS[s.ordinal()].name());
+        }
+        prefs.flush();
     }
 
     @Override

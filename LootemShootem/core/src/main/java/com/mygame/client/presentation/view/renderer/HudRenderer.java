@@ -627,6 +627,8 @@ public final class HudRenderer {
     }
 
     private void drawPanel(float x, float y, float w, float h, float alpha) {
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapes.setProjectionMatrix(screenProj);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(0.28f, 0.30f, 0.34f, alpha);
