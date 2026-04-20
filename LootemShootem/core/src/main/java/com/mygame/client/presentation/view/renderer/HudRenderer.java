@@ -22,13 +22,11 @@ import com.mygame.shared.dto.TileType;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 
 public final class HudRenderer {
 
-    private static final int MAX_KILL_FEED = 4;
-    private static final int LEADERBOARD_ROWS = 9; // plus current player if outside top 9
+    private static final int LEADERBOARD_ROWS = 9;
 
     private final WorldState      worldState;
     private final InputHandler    inputHandler;
@@ -40,18 +38,10 @@ public final class HudRenderer {
     private final GlyphLayout     layout = new GlyphLayout();
     private       Matrix4         screenProj;
 
-    private final LinkedList<String> killFeed          = new LinkedList<>();
-    private long                     lastProcessedTick = -1;
+    private long lastProcessedTick = -1;
 
     private String pickupToast;
     private float  pickupToastTimer;
-
-    // ── Leaderboard mode cycling ─────────────────────────────────────────────
-    /** 0 = kills session, 1 = kills this life, 2 = total score (kills + minutes). */
-    private int   leaderboardMode     = 0;
-    private static final int LB_MODES = 3;
-    /** Tracks touch to avoid repeated cycling on a held tap. */
-    private boolean lbTouchConsumed   = false;
 
     // ── Heal flash ───────────────────────────────────────────────────────────
     private float prevHp          = -1f;
@@ -59,11 +49,10 @@ public final class HudRenderer {
     private static final float HEAL_FLASH_DURATION = 0.5f;
 
     // ── Minimap ──────────────────────────────────────────────────────────────
-    private static final int   MINI_SIZE         = 120;
-    private static final int   MINI_SIZE_EXPANDED = 240;
-    private static final int   MINI_MARGIN       = 10;
-    private static final float MINI_ALPHA        = 0.70f;
-    private boolean            minimapExpanded   = false;
+    private static final int   MINI_SIZE          = 120;
+    private static final int   MINI_MARGIN        = 10;
+    private static final float MINI_ALPHA         = 0.70f;
+    private boolean            minimapExpanded    = false;
 
     public HudRenderer(WorldState worldState,
                        InputHandler inputHandler,
@@ -97,14 +86,6 @@ public final class HudRenderer {
 
         if (snap != null && snap.tick > lastProcessedTick) {
             lastProcessedTick = snap.tick;
-            if (snap.killFeed != null) {
-                for (String msg : snap.killFeed) {
-                    if (msg != null && !msg.isEmpty()) {
-                        killFeed.addLast(msg);
-                        while (killFeed.size() > MAX_KILL_FEED) killFeed.removeFirst();
-                    }
-                }
-            }
             if (me != null && me.lastPickupNotice != null && !me.lastPickupNotice.isEmpty()) {
                 pickupToast      = me.lastPickupNotice;
                 pickupToastTimer = 3f;
@@ -112,31 +93,6 @@ public final class HudRenderer {
         }
 
         if (pickupToastTimer > 0f) pickupToastTimer -= delta;
-
-        // ── Leaderboard mode: Tab on desktop, tap on leaderboard header on mobile ──
-        if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
-            leaderboardMode = (leaderboardMode + 1) % LB_MODES;
-        }
-        if (Gdx.input.justTouched()) {
-            int tx = Gdx.input.getX();
-            int ty = Gdx.graphics.getHeight() - Gdx.input.getY();
-            int sw = Gdx.graphics.getWidth();
-            int sh = Gdx.graphics.getHeight();
-            HudSlot lbSlot = leaderboardSlot();
-            boolean leaderboardTapZone = inputHandler.isAndroid()
-                    ? tx < sw * 0.42f && ty < inputHandler.getPauseBtnY() && ty > inputHandler.getPauseBtnY() - hudPx(240)
-                    : (lbSlot == HudSlot.TOP_LEFT ? tx < sw * 0.4f : lbSlot == HudSlot.TOP_CENTER ? tx > sw * 0.3f && tx < sw * 0.7f : tx > sw * 0.6f) && ty > sh * 0.82f;
-            if (!isInsideMinimap(tx, ty) && leaderboardTapZone) {
-                if (!lbTouchConsumed) {
-                    leaderboardMode = (leaderboardMode + 1) % LB_MODES;
-                    lbTouchConsumed = true;
-                }
-            } else {
-                lbTouchConsumed = false;
-            }
-        } else if (!Gdx.input.isTouched()) {
-            lbTouchConsumed = false;
-        }
 
         // ── Heal flash detection ─────────────────────────────────────────────
         if (me != null && !me.isDead) {
@@ -162,9 +118,7 @@ public final class HudRenderer {
             drawPlayerInfo(me);
         }
 
-        // Top slot widgets — always visible even when dead
         drawTopSlots(snap, me);
-
         drawPickupToast();
 
         if (inputHandler.isAndroid()) drawTouchControls();
@@ -182,11 +136,12 @@ public final class HudRenderer {
         int barH = hudPx(22);
         float hpFrac = Math.max(0f, Math.min(1f, me.hp / Math.max(me.maxHp, 1f)));
 
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapes.setProjectionMatrix(screenProj);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
 
-        // HP bar
-        shapes.setColor(0.25f, 0.25f, 0.25f, 1f);
+        shapes.setColor(0.25f, 0.25f, 0.25f, 0.5f);
         shapes.rect(barX, barY, barW, barH);
         shapes.setColor(
                 hpFrac < 0.5f ? 0.9f : (2f - 2f * hpFrac) * 0.9f,
@@ -194,24 +149,19 @@ public final class HudRenderer {
                 0.10f, 1f);
         shapes.rect(barX, barY, barW * hpFrac, barH);
 
-        // Speed tier bar — thin blue strip directly above HP bar
         if (me.speedTier > 0) {
             int sBarY = barY + barH + hudPx(3);
-            shapes.setColor(0.12f, 0.16f, 0.26f, 1f); // dark background
+            shapes.setColor(0.12f, 0.16f, 0.26f, 0.5f);
             shapes.rect(barX, sBarY, barW, hudPx(7));
-            shapes.setColor(0.20f, 0.72f, 0.95f, 1f); // blue fill
+            shapes.setColor(0.20f, 0.72f, 0.95f, 1f);
             shapes.rect(barX, sBarY, barW * (me.speedTier / 10f), hudPx(7));
         }
 
         shapes.end();
 
-        // Heal flash — green pulsing border around HP bar (needs blending)
         if (healFlashTimer > 0f) {
             float alpha = Math.min(1f, healFlashTimer / HEAL_FLASH_DURATION);
             float pulse = (float) Math.abs(Math.sin(healFlashTimer * Math.PI * 4));
-            Gdx.gl.glEnable(GL20.GL_BLEND);
-            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-            shapes.setProjectionMatrix(screenProj);
             shapes.begin(ShapeRenderer.ShapeType.Filled);
             shapes.setColor(0.10f, 0.90f, 0.30f, alpha * pulse);
             shapes.rect(barX - hudPx(3), barY - hudPx(3), barW + hudPx(6), barH + hudPx(6));
@@ -219,27 +169,22 @@ public final class HudRenderer {
         }
     }
 
-    // ── Player info — bottom-left (weapon info, HP number inside bar) ────────
+    // ── Player info ──────────────────────────────────────────────────────────
 
     private void drawPlayerInfo(PlayerDto me) {
         int barX = hudPx(20);
         int barY = hudPx(20);
-        int barW = hudPx(200);
         int barH = hudPx(22);
-        // Space occupied by the optional speed bar (7px bar + 3px gap above HP bar)
         float speedBarSpace = (me.speedTier > 0) ? hudPx(10) : 0f;
-        // Primary weapon text sits above the bars
         float primY = barY + barH + speedBarSpace + hudPx(20);
 
         batch.setProjectionMatrix(screenProj);
         batch.begin();
 
-        // HP number drawn inside the HP bar
         font.setColor(Color.WHITE);
-        drawTextBadge((int) (barX + hudPx(4)), (int) (barY + hudPx(2)), hudPx(92), hudPx(20), hudTextPanelAlpha());
+        drawTextBadge((int) (barX + hudPx(4)), (int) (barY + hudPx(2)), hudPx(92), hudPx(20));
         drawShadowedText(font, (int) me.hp + " / " + (int) me.maxHp, barX + hudPx(8), barY + barH - hudPx(4));
 
-        // Primary weapon line
         String reloadHint = me.isReloading
                 ? "  RELOADING " + String.format("%.1f", me.reloadTimer) + "s..."
                 : (me.equippedAmmo == 0 && me.equippedMags == 0 ? "  NO AMMO" : "");
@@ -252,28 +197,27 @@ public final class HudRenderer {
                 : new Color(0.95f, 0.95f, 0.60f, 1f));
         layout.setText(font, primary);
         drawTextBadge((int) (barX - hudPx(4)), (int) (primY - hudPx(18)),
-                (int) (layout.width + hudPx(8)), hudPx(24), hudTextPanelAlpha());
+                (int) (layout.width + hudPx(8)), hudPx(24));
         drawShadowedText(font, primary, barX, primY);
 
-        // Secondary weapon line (above primary)
         if (me.secondaryWeaponType != null) {
             font.setColor(new Color(0.70f, 0.70f, 0.70f, 1f));
             String secondary = me.secondaryWeaponType.name() + "  " + me.secondaryAmmo
                     + " / " + me.secondaryMags + " mags  [SPACE]";
             layout.setText(font, secondary);
             drawTextBadge((int) (barX - hudPx(4)), (int) (primY + hudPx(4)),
-                    (int) (layout.width + hudPx(8)), hudPx(24), hudTextPanelAlpha());
+                    (int) (layout.width + hudPx(8)), hudPx(24));
             drawShadowedText(font, secondary, barX, primY + hudPx(22));
         }
 
-        // Reload progress bar — above the secondary weapon line
         if (me.isReloading && me.reloadTimer > 0f) {
             batch.end();
+            int barW = hudPx(200);
             float filled     = 1f - Math.min(1f, me.reloadTimer / 3f);
             float reloadBarY = primY + hudPx(46);
             shapes.setProjectionMatrix(screenProj);
             shapes.begin(ShapeRenderer.ShapeType.Filled);
-            shapes.setColor(0.30f, 0.30f, 0.30f, 1f);
+            shapes.setColor(0.30f, 0.30f, 0.30f, 0.5f);
             shapes.rect(barX, reloadBarY, barW, hudPx(6));
             shapes.setColor(1f, 0.65f, 0.10f, 1f);
             shapes.rect(barX, reloadBarY, barW * filled, hudPx(6));
@@ -300,7 +244,7 @@ public final class HudRenderer {
             switch (widget) {
                 case TIME_ALIVE:  drawTimeAliveInSlot(me, slot, sw, sh);     break;
                 case LEADERBOARD: drawLeaderboardInSlot(snap, slot, sw, sh); break;
-                default: break; // MINIMAP is drawn separately
+                default: break; // MINIMAP drawn separately
             }
         }
 
@@ -311,24 +255,7 @@ public final class HudRenderer {
         switch (slot) {
             case TOP_LEFT:   return HudWidget.LEADERBOARD;
             case TOP_CENTER: return HudWidget.TIME_ALIVE;
-            case TOP_RIGHT:  return HudWidget.MINIMAP;
-            default:         return HudWidget.LEADERBOARD;
-        }
-    }
-
-    // ── Kill feed — drawn below leaderboard ───────────────────────────────────
-
-    private void drawKillFeedBelowLeaderboard(HudSlot slot, float startY, int sw) {
-        if (killFeed.isEmpty()) return;
-        float y = startY - hudPx(6); // small gap below last leaderboard row
-        for (int i = killFeed.size() - 1; i >= 0; i--) {
-            String msg = killFeed.get(i);
-            font.setColor(1f, 0.85f, 0.40f, 1f);
-            layout.setText(font, msg);
-            drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)),
-                    (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
-            drawShadowedText(font, msg, slotX(slot, layout.width, sw), y);
-            y -= hudPx(22);
+            default:         return HudWidget.MINIMAP;
         }
     }
 
@@ -336,77 +263,52 @@ public final class HudRenderer {
 
     private void drawTimeAliveInSlot(PlayerDto me, HudSlot slot, int sw, int sh) {
         if (me == null) return;
-        int mins = (int) me.timeSurvived / 60;
-        int secs = (int) me.timeSurvived % 60;
-        String text = String.format("Time: %d:%02d", mins, secs);
+        String text = String.format("Time: %d:%02d", (int) me.timeSurvived / 60, (int) me.timeSurvived % 60);
         font.setColor(Color.LIGHT_GRAY);
         layout.setText(font, text);
         float y = slotTopY(slot, sh);
         drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)), (int) (y - hudPx(18)),
-                (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
+                (int) (layout.width + hudPx(12)), hudPx(24));
         drawShadowedText(font, text, slotX(slot, layout.width, sw), y);
     }
 
-    // ── Leaderboard (3 modes, Tab / tap to cycle) ────────────────────────────
+    // ── Leaderboard ──────────────────────────────────────────────────────────
 
     private void drawLeaderboardInSlot(GameSnapshotDto snap, HudSlot slot, int sw, int sh) {
         if (snap == null || snap.players == null || snap.players.length == 0) return;
 
         String localId = worldState.getLocalPlayerId();
 
-        // Determine comparator and value extractor per mode
-        Comparator<PlayerDto> cmp;
-        String modeLabel;
-        switch (leaderboardMode) {
-            case 1:
-                cmp       = Comparator.comparingInt((PlayerDto p) -> p.killsThisLife);
-                modeLabel = "KILLS THIS LIFE";
-                break;
-            case 2:
-                cmp       = Comparator.comparingInt((PlayerDto p) -> p.score + (int)(p.timeSurvived / 60f));
-                modeLabel = "TOTAL SCORE";
-                break;
-            default:
-                cmp       = Comparator.comparingInt((PlayerDto p) -> p.score);
-                modeLabel = "KILLS SESSION";
-                break;
-        }
-
         List<PlayerDto> sorted = new ArrayList<>();
         for (PlayerDto p : snap.players) sorted.add(p);
-        sorted.sort(cmp.reversed());
+        sorted.sort(Comparator.comparingInt((PlayerDto p) -> p.score).reversed());
 
         float y    = slotTopY(slot, sh);
         float rowH = hudPx(20);
 
-        // Header with mode label and cycle hint
-        String header = modeLabel + (inputHandler.isAndroid() ? " [TAP]" : " [TAB]");
         font.setColor(0.80f, 0.80f, 0.80f, 1f);
-        layout.setText(font, header);
+        layout.setText(font, "LEADERBOARD");
         drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)),
-                (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
-        drawShadowedText(font, header, slotX(slot, layout.width, sw), y);
+                (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24));
+        drawShadowedText(font, "LEADERBOARD", slotX(slot, layout.width, sw), y);
         y -= rowH;
 
-        // Top LEADERBOARD_ROWS entries
         boolean localInTop = false;
         int shown = 0;
         for (PlayerDto p : sorted) {
             if (shown >= LEADERBOARD_ROWS) break;
             boolean isMe = localId != null && localId.equals(p.playerId);
             if (isMe) localInTop = true;
-            int value = lbValue(p);
             font.setColor(isMe ? new Color(0.20f, 0.95f, 0.30f, 1f) : Color.LIGHT_GRAY);
-            String line = (shown + 1) + ".  " + p.username + ":  " + value;
+            String line = (shown + 1) + ".  " + p.username + ":  " + p.score;
             layout.setText(font, line);
             drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)),
-                    (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
+                    (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24));
             drawShadowedText(font, line, slotX(slot, layout.width, sw), y);
             y -= rowH;
             shown++;
         }
 
-        // If current player is outside top rows, always append them
         if (!localInTop && localId != null) {
             PlayerDto myEntry = null;
             int rank = 1;
@@ -418,28 +320,17 @@ public final class HudRenderer {
                 font.setColor(0.45f, 0.45f, 0.45f, 1f);
                 layout.setText(font, "...");
                 drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)),
-                        (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
+                        (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24));
                 drawShadowedText(font, "...", slotX(slot, layout.width, sw), y);
                 y -= rowH;
 
                 font.setColor(new Color(0.20f, 0.95f, 0.30f, 1f));
-                String line = rank + ".  " + myEntry.username + ":  " + lbValue(myEntry);
+                String line = rank + ".  " + myEntry.username + ":  " + myEntry.score;
                 layout.setText(font, line);
                 drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)),
-                        (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
+                        (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24));
                 drawShadowedText(font, line, slotX(slot, layout.width, sw), y);
-                y -= rowH;
             }
-        }
-
-        drawKillFeedBelowLeaderboard(slot, y, sw);
-    }
-
-    private int lbValue(PlayerDto p) {
-        switch (leaderboardMode) {
-            case 1:  return p.killsThisLife;
-            case 2:  return p.score * 10 + (int)(p.timeSurvived / 10f);
-            default: return p.score;
         }
     }
 
@@ -499,28 +390,33 @@ public final class HudRenderer {
         layout.setText(font, pickupToast);
         drawTextBadge((int) (((sw - layout.width) / 2f) - hudPx(8)),
                 (int) (sh * (inputHandler.isAndroid() ? 0.44f : 0.38f) - hudPx(18)),
-                (int) (layout.width + hudPx(16)), hudPx(26), hudTextPanelAlpha() * 0.9f);
-        drawShadowedText(font, pickupToast, (sw - layout.width) / 2f, sh * (inputHandler.isAndroid() ? 0.44f : 0.38f));
+                (int) (layout.width + hudPx(16)), hudPx(26));
+        drawShadowedText(font, pickupToast, (sw - layout.width) / 2f,
+                sh * (inputHandler.isAndroid() ? 0.44f : 0.38f));
         batch.end();
     }
 
     private void drawTopSlotPanels(GameSnapshotDto snap, PlayerDto me, int sw, int sh) {
         if (inputHandler.isAndroid()) return;
 
+        // Time panel
+        HudSlot timeSlot = widgetSlot(HudWidget.TIME_ALIVE, HudSlot.TOP_CENTER);
         if (me != null) {
             String timeText = String.format("Time: %d:%02d", (int) me.timeSurvived / 60, (int) me.timeSurvived % 60);
             layout.setText(font, timeText);
-            drawPanel(slotX(HudSlot.TOP_CENTER, layout.width, sw) - hudPx(10), sh - hudTopMargin() - hudPx(18),
-                    layout.width + hudPx(20), hudPx(28), 0.10f);
+            float ty = slotTopY(timeSlot, sh);
+            drawPanel(slotPanelX(timeSlot, layout.width, sw), ty - hudPx(18),
+                    layout.width + hudPx(20), hudPx(28), 0.50f);
         }
 
+        // Leaderboard panel
         if (snap != null && snap.players != null && snap.players.length > 0) {
-            HudSlot lbSlot = leaderboardSlot();
-            float leaderboardWidth = inputHandler.isAndroid() ? hudPx(210) : hudPx(170);
-            float lbRows = LEADERBOARD_ROWS + 2 + (killFeed.isEmpty() ? 0 : killFeed.size() + 0.5f);
-            float panelX = slotPanelX(lbSlot, leaderboardWidth, sw);
-            float panelY = slotTopY(lbSlot, sh) - hudPx(18) - hudPx(20) * lbRows;
-            drawPanel(panelX, panelY, leaderboardWidth + hudPx(20), hudPx(22) * lbRows + hudPx(12), 0.08f);
+            HudSlot lbSlot = widgetSlot(HudWidget.LEADERBOARD, HudSlot.TOP_LEFT);
+            float lbWidth = hudPx(170);
+            float rows    = LEADERBOARD_ROWS + 2;
+            float panelY  = slotTopY(lbSlot, sh) - hudPx(18) - hudPx(20) * rows;
+            drawPanel(slotPanelX(lbSlot, lbWidth, sw), panelY,
+                    lbWidth + hudPx(20), hudPx(22) * rows + hudPx(12), 0.50f);
         }
     }
 
@@ -574,8 +470,8 @@ public final class HudRenderer {
     // ── Minimap ───────────────────────────────────────────────────────────────
 
     private void drawMinimap() {
-        MapDto          map    = worldState.getMap();
-        GameSnapshotDto snap   = worldState.getSnapshot();
+        MapDto          map  = worldState.getMap();
+        GameSnapshotDto snap = worldState.getSnapshot();
         if (map == null || map.tiles == null) return;
 
         int sw       = Gdx.graphics.getWidth();
@@ -588,87 +484,69 @@ public final class HudRenderer {
         float scaleX = (float) miniSize / map.width;
         float scaleY = (float) miniSize / map.height;
         String localId = worldState.getLocalPlayerId();
-        float bgAlpha = minimapExpanded ? 0.56f : MINI_ALPHA;
+        float bgAlpha  = minimapExpanded ? 0.56f : MINI_ALPHA;
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapes.setProjectionMatrix(screenProj);
 
-        // ── Background ──────────────────────────────────────────────────────
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(0f, 0f, 0f, bgAlpha);
         shapes.rect(miniX, miniY, miniSize, miniSize);
 
-        // ── Tiles ───────────────────────────────────────────────────────────
         for (int ty = 0; ty < map.height; ty++) {
             for (int tx = 0; tx < map.width; tx++) {
                 TileType tile = map.tiles[ty * map.width + tx];
                 if (tile == null || tile == TileType.FLOOR) continue;
                 switch (tile) {
-                    case WALL:
-                        shapes.setColor(0.40f, 0.40f, 0.46f, 1f);
-                        break;
+                    case WALL:   shapes.setColor(0.40f, 0.40f, 0.46f, 1f); break;
                     case WINDOW:
                         if (!minimapExpanded) continue;
-                        shapes.setColor(0.25f, 0.70f, 0.90f, 0.85f);
-                        break;
+                        shapes.setColor(0.25f, 0.70f, 0.90f, 0.85f); break;
                     case TRAP:
                         if (!minimapExpanded) continue;
-                        shapes.setColor(0.90f, 0.40f, 0.10f, 0.85f);
-                        break;
+                        shapes.setColor(0.90f, 0.40f, 0.10f, 0.85f); break;
                     case COBWEB:
                         if (!minimapExpanded) continue;
-                        shapes.setColor(0.60f, 0.55f, 0.45f, 0.80f);
-                        break;
-                    default:
-                        continue;
+                        shapes.setColor(0.60f, 0.55f, 0.45f, 0.80f); break;
+                    default: continue;
                 }
-                shapes.rect(
-                    miniX + tx * scaleX,
-                    miniY + ty * scaleY,
-                    Math.max(1f, scaleX),
-                    Math.max(1f, scaleY));
+                shapes.rect(miniX + tx * scaleX, miniY + ty * scaleY,
+                        Math.max(1f, scaleX), Math.max(1f, scaleY));
             }
         }
 
-        // ── Chests ──────────────────────────────────────────────────────────
         if (snap != null && snap.chests != null) {
             float cs = Math.max(2.5f, scaleX * 0.9f);
             for (ChestDto chest : snap.chests) {
                 if (chest == null || chest.pos == null) continue;
-                float cx = miniX + chest.pos.x * scaleX;
-                float cy = miniY + chest.pos.y * scaleY;
                 shapes.setColor(chest.isOpen
-                    ? new Color(0.55f, 0.55f, 0.55f, 0.9f)
-                    : new Color(1.00f, 0.82f, 0.10f, 1.0f));
-                shapes.rect(cx - cs * 0.5f, cy - cs * 0.5f, cs, cs);
+                        ? new Color(0.55f, 0.55f, 0.55f, 0.9f)
+                        : new Color(1.00f, 0.82f, 0.10f, 1.0f));
+                shapes.rect(miniX + chest.pos.x * scaleX - cs * 0.5f,
+                        miniY + chest.pos.y * scaleY - cs * 0.5f, cs, cs);
             }
         }
 
-        // ── Players ─────────────────────────────────────────────────────────
         if (snap != null && snap.players != null) {
             float pr = Math.max(2f, scaleX * 0.65f);
             for (PlayerDto p : snap.players) {
                 if (p == null || p.pos == null || p.isDead) continue;
                 boolean isMe = localId != null && localId.equals(p.playerId);
-                float px = miniX + p.pos.x * scaleX;
-                float py = miniY + p.pos.y * scaleY;
                 shapes.setColor(isMe
-                    ? new Color(0.20f, 0.95f, 0.30f, 1f)
-                    : new Color(0.95f, 0.20f, 0.20f, 1f));
-                shapes.circle(px, py, pr, 8);
+                        ? new Color(0.20f, 0.95f, 0.30f, 1f)
+                        : new Color(0.95f, 0.20f, 0.20f, 1f));
+                shapes.circle(miniX + p.pos.x * scaleX, miniY + p.pos.y * scaleY, pr, 8);
             }
         }
 
         shapes.end();
 
-        // ── Border ──────────────────────────────────────────────────────────
         shapes.begin(ShapeRenderer.ShapeType.Line);
         shapes.setColor(1f, 1f, 1f, 0.80f);
         shapes.rect(miniX, miniY, miniSize, miniSize);
         shapes.end();
 
-        // ── "M" hint label ──────────────────────────────────────────────────
         batch.setProjectionMatrix(screenProj);
         batch.begin();
         font.setColor(0.65f, 0.65f, 0.65f, 0.65f);
@@ -682,8 +560,7 @@ public final class HudRenderer {
         switch (slot) {
             case TOP_LEFT:   return hudSideMargin();
             case TOP_CENTER: return (sw - textWidth) / 2f;
-            case TOP_RIGHT:  return sw - textWidth - hudSideMargin();
-            default:         return hudSideMargin();
+            default:         return sw - textWidth - hudSideMargin();
         }
     }
 
@@ -691,8 +568,7 @@ public final class HudRenderer {
         switch (slot) {
             case TOP_LEFT:   return hudSideMargin() - hudPx(10);
             case TOP_CENTER: return (sw - contentWidth) / 2f - hudPx(10);
-            case TOP_RIGHT:  return sw - contentWidth - hudSideMargin() - hudPx(10);
-            default:         return hudSideMargin() - hudPx(10);
+            default:         return sw - contentWidth - hudSideMargin() - hudPx(10);
         }
     }
 
@@ -703,40 +579,21 @@ public final class HudRenderer {
         return sh - hudTopMargin();
     }
 
-    private HudSlot leaderboardSlot() {
+    private HudSlot widgetSlot(HudWidget widget, HudSlot fallback) {
         if (prefs != null) {
             for (HudSlot s : HudSlot.values()) {
-                if (prefs.getHudWidget(s) == HudWidget.LEADERBOARD) return s;
+                if (prefs.getHudWidget(s) == widget) return s;
             }
         }
-        return HudSlot.TOP_LEFT;
-    }
-
-    private HudSlot minimapSlot() {
-        if (prefs != null) {
-            for (HudSlot s : HudSlot.values()) {
-                if (prefs.getHudWidget(s) == HudWidget.MINIMAP) return s;
-            }
-        }
-        return HudSlot.TOP_RIGHT;
+        return fallback;
     }
 
     private float minimapX(int sw, int miniSize) {
         if (minimapExpanded) return (sw - miniSize) * 0.5f;
-        switch (minimapSlot()) {
+        switch (widgetSlot(HudWidget.MINIMAP, HudSlot.TOP_RIGHT)) {
             case TOP_LEFT:   return hudPx(MINI_MARGIN + 12);
             case TOP_CENTER: return (sw - miniSize) * 0.5f;
             default:         return sw - miniSize - hudPx(MINI_MARGIN + 12);
-        }
-    }
-
-    private float mobileWidgetTopY(HudWidget widget, int sh) {
-        switch (widget) {
-            case LEADERBOARD:
-                return inputHandler.getPauseBtnY() - hudPx(12);
-            case TIME_ALIVE:
-            default:
-                return sh - hudTopMargin();
         }
     }
 
@@ -777,9 +634,9 @@ public final class HudRenderer {
         shapes.end();
     }
 
-    private void drawTextBadge(int x, int y, int w, int h, float alpha) {
+    private void drawTextBadge(int x, int y, int w, int h) {
         batch.end();
-        drawPanel(x, y, w, h, alpha);
+        drawPanel(x, y, w, h, 0.50f);
         batch.begin();
     }
 
@@ -823,10 +680,6 @@ public final class HudRenderer {
 
     private float hudTopMargin() {
         return inputHandler.isAndroid() ? hudPx(44) : hudPx(20);
-    }
-
-    private float hudTextPanelAlpha() {
-        return inputHandler.isAndroid() ? 0.035f : 0.04f;
     }
 
     private void drawShadowedText(BitmapFont bitmapFont, String text, float x, float y) {
