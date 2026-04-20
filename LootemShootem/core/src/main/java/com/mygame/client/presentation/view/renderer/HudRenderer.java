@@ -850,7 +850,7 @@ public final class HudRenderer {
     }
 
     private float hudTextPanelAlpha() {
-        return inputHandler.isAndroid() ? 0.075f : 0.055f;
+        return inputHandler.isAndroid() ? 0.035f : 0.04f;
     }
 
     private void drawShadowedText(BitmapFont bitmapFont, String text, float x, float y) {
