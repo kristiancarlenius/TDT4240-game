@@ -308,10 +308,10 @@ public final class GameScreen implements Screen {
         if (inputHandler.isAndroid()) {
             drawOverlayButtonText("CONTROLS: " + (prefs.isControlsSwapped() ? "LEFT-HANDED" : "RIGHT-HANDED"), overlaySwapY(), TOGGLE_BTN_H);
         }
-        drawSliderLabel("Music Volume  " + Math.round(prefs.getMusicVolume() * 100f) + "%", overlayVolumeY() + 28f);
+        drawSliderLabel("Music Volume  " + Math.round(prefs.getMusicVolume() * 100f) + "%", overlayVolumeY() + 44f);
         if (inputHandler.isAndroid()) {
-            drawSliderLabel("Joystick Size  " + Math.round(prefs.getTouchJoystickScale() * 100f) + "%", overlayStickSizeY() + 28f);
-            drawSliderLabel("Joystick Opacity  " + Math.round(prefs.getTouchJoystickOpacity() * 100f) + "%", overlayStickOpacityY() + 28f);
+            drawSliderLabel("Joystick Size  " + Math.round(prefs.getTouchJoystickScale() * 100f) + "%", overlayStickSizeY() + 44f);
+            drawSliderLabel("Joystick Opacity  " + Math.round(prefs.getTouchJoystickOpacity() * 100f) + "%", overlayStickOpacityY() + 44f);
         } else {
             font.draw(batch, "ESC/BACK resumes", centeredX("ESC/BACK resumes", font), sh * 0.15f);
         }
@@ -339,8 +339,8 @@ public final class GameScreen implements Screen {
         font.draw(batch, "CONTROLS", panelX + 18f, panelY + panelH - 10f);
         if (inputHandler.isAndroid()) {
             font.draw(batch, leftHanded ? "MOVE: right stick" : "MOVE: left stick", panelX + 18f, panelY + panelH - 52f);
-            font.draw(batch, leftHanded ? "AIM: left stick" : "AIM: right stick", panelX + 18f, panelY + panelH - 80f);
-            font.draw(batch, leftHanded ? "FIRE: left red button" : "FIRE: right red button", panelX + 18f, panelY + panelH - 108f);
+            font.draw(batch, leftHanded ? "AIM: left stick outer ring" : "AIM: right stick outer ring", panelX + 18f, panelY + panelH - 80f);
+            font.draw(batch, leftHanded ? "SHOOT: left stick inner ring" : "SHOOT: right stick inner ring", panelX + 18f, panelY + panelH - 108f);
             font.draw(batch, "SWAP: switch weapon   LOAD: reload", panelX + 18f, panelY + panelH - 136f);
         } else {
             font.draw(batch, "MOVE: WASD   AIM/FIRE: mouse", panelX + 18f, panelY + panelH - 58f);

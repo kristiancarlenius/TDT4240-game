@@ -13,6 +13,7 @@ public final class VirtualJoystickView {
     private float baseRadius = BASE_RADIUS_DEFAULT;
     private float thumbRadius = BASE_RADIUS_DEFAULT * THUMB_RATIO;
     private float opacity = 0.78f;
+    private boolean thumbVisible = true;
 
     private float thumbX = 0f;
     private float thumbY = 0f;
@@ -34,6 +35,13 @@ public final class VirtualJoystickView {
         clampThumb();
     }
 
+    public void setBaseRadius(float baseRadius, float opacity) {
+        this.baseRadius = Math.max(32f, baseRadius);
+        this.thumbRadius = this.baseRadius * THUMB_RATIO;
+        this.opacity = opacity;
+        clampThumb();
+    }
+
     public float getBaseX() {
         return baseX;
     }
@@ -44,6 +52,14 @@ public final class VirtualJoystickView {
 
     public float getBaseRadius() {
         return baseRadius;
+    }
+
+    public float getThumbRadius() {
+        return thumbRadius;
+    }
+
+    public void setThumbVisible(boolean thumbVisible) {
+        this.thumbVisible = thumbVisible;
     }
 
     public boolean touchDown(int screenX, int screenY, int pointer, int screenH) {
@@ -111,10 +127,12 @@ public final class VirtualJoystickView {
         shapes.setColor(0.80f, 0.86f, 0.95f, opacity * 0.28f);
         shapes.circle(baseX, baseY, baseRadius - 5f, 32);
 
-        float tx = baseX + thumbX;
-        float ty = baseY + thumbY;
-        shapes.setColor(0.45f, 0.70f, 0.98f, opacity);
-        shapes.circle(tx, ty, thumbRadius, 24);
+        if (thumbVisible) {
+            float tx = baseX + thumbX;
+            float ty = baseY + thumbY;
+            shapes.setColor(0.45f, 0.70f, 0.98f, opacity);
+            shapes.circle(tx, ty, thumbRadius, 24);
+        }
     }
 
     private void updateThumb(float wx, float wy) {
