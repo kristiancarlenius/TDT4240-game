@@ -320,21 +320,18 @@ public final class HudRenderer {
     private void drawKillFeedInSlot(HudSlot slot, int sw, int sh) {
         if (killFeed.isEmpty()) return;
         if (inputHandler.isAndroid()) {
-            StringBuilder line = new StringBuilder();
+            float y = mobileWidgetTopY(HudWidget.KILL_FEED, sh);
             int shown = 0;
-            for (String msg : killFeed) {
-                if (shown > 0) line.append("   |   ");
-                line.append(msg);
+            for (int i = killFeed.size() - 1; i >= 0 && shown < 3; i--) {
+                String msg = killFeed.get(i);
+                font.setColor(1f, 0.85f, 0.40f, 1f);
+                layout.setText(font, msg);
+                drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)),
+                        (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
+                drawShadowedText(font, msg, slotX(slot, layout.width, sw), y);
+                y -= hudPx(22);
                 shown++;
-                if (shown >= 3) break;
             }
-            String text = line.toString();
-            font.setColor(1f, 0.85f, 0.40f, 1f);
-            layout.setText(font, text);
-            drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)),
-                    (int) (mobileWidgetTopY(HudWidget.KILL_FEED, sh) - hudPx(18)),
-                    (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
-            drawShadowedText(font, text, slotX(slot, layout.width, sw), mobileWidgetTopY(HudWidget.KILL_FEED, sh));
             return;
         }
         float y = inputHandler.isAndroid() ? mobileWidgetTopY(HudWidget.KILL_FEED, sh) : sh - hudTopMargin();
@@ -746,7 +743,7 @@ public final class HudRenderer {
             case LEADERBOARD:
                 return hudSideMargin();
             case KILL_FEED:
-                return (sw - textWidth) / 2f;
+                return sw - textWidth - hudSideMargin();
             case TIME_ALIVE:
             default:
                 return (sw - textWidth) / 2f;
@@ -759,7 +756,7 @@ public final class HudRenderer {
                 return inputHandler.getPauseBtnY() - hudPx(12);
             case KILL_FEED:
                 return inputHandler.isAndroid()
-                        ? sh - hudTopMargin() - hudPx(28)
+                        ? currentMinimapY(sh) - hudPx(18)
                         : sh - hudTopMargin();
             case TIME_ALIVE:
             default:
