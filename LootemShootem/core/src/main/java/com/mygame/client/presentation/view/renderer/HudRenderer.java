@@ -495,12 +495,12 @@ public final class HudRenderer {
         batch.setProjectionMatrix(screenProj);
         batch.begin();
         font.setColor(Color.WHITE);
-        layout.setText(font, "SWP");
-        font.draw(batch, "SWP",
+        layout.setText(font, "SWAP");
+        font.draw(batch, "SWAP",
                 inputHandler.getSwitchBtnX() - layout.width / 2f,
                 inputHandler.getSwitchBtnY() + layout.height / 2f);
-        layout.setText(font, "RLD");
-        font.draw(batch, "RLD",
+        layout.setText(font, "LOAD");
+        font.draw(batch, "LOAD",
                 inputHandler.getReloadBtnX() - layout.width / 2f,
                 inputHandler.getReloadBtnY() + layout.height / 2f);
         layout.setText(font, "FIRE");

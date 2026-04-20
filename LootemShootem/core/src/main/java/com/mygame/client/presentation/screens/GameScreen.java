@@ -64,6 +64,8 @@ public final class GameScreen implements Screen {
     private PreferencesPort prefs;
     private boolean paused = false;
     private boolean showControlsPanel = false;
+    private boolean navigatingToMenu = false;
+    private boolean disposed = false;
     private DragControl dragControl = DragControl.NONE;
 
     public GameScreen(Navigator navigator, String serverUrl, String username) {
@@ -93,7 +95,7 @@ public final class GameScreen implements Screen {
         session = new GameSessionService(
                 worldState,
                 applySnapshot,
-                () -> Gdx.app.postRunnable(() -> navigator.showMainMenu(serverUrl, username)));
+                () -> Gdx.app.postRunnable(this::handleSessionDisconnected));
         SendInputUseCase sendInput = new SendInputUseCase(session);
 
         prefs = new PreferencesRepository();
@@ -151,6 +153,7 @@ public final class GameScreen implements Screen {
 
     @Override
     public void dispose() {
+        disposed = true;
         if (session != null) session.disconnect();
         if (worldRenderer != null) worldRenderer.dispose();
         if (shapes != null) shapes.dispose();
@@ -187,7 +190,7 @@ public final class GameScreen implements Screen {
                 return;
             }
             if (isInsideButton(x, y, overlayButtonX(), overlayLeaveY(), OVERLAY_BTN_W, OVERLAY_BTN_H)) {
-                navigator.showMainMenu(serverUrl, username);
+                leaveMatch();
                 return;
             }
             if (isInsideButton(x, y, overlayButtonX(), overlayMuteY(), TOGGLE_BTN_W, TOGGLE_BTN_H)) {
@@ -338,7 +341,7 @@ public final class GameScreen implements Screen {
             font.draw(batch, leftHanded ? "MOVE: right stick" : "MOVE: left stick", panelX + 18f, panelY + panelH - 52f);
             font.draw(batch, leftHanded ? "AIM: left stick" : "AIM: right stick", panelX + 18f, panelY + panelH - 80f);
             font.draw(batch, leftHanded ? "FIRE: left red button" : "FIRE: right red button", panelX + 18f, panelY + panelH - 108f);
-            font.draw(batch, "SWP: swap weapon   RLD: reload", panelX + 18f, panelY + panelH - 136f);
+            font.draw(batch, "SWAP: switch weapon   LOAD: reload", panelX + 18f, panelY + panelH - 136f);
         } else {
             font.draw(batch, "MOVE: WASD   AIM/FIRE: mouse", panelX + 18f, panelY + panelH - 58f);
             font.draw(batch, "SWAP: SPACE   RELOAD: R", panelX + 18f, panelY + panelH - 86f);
@@ -423,6 +426,17 @@ public final class GameScreen implements Screen {
     private void rebuildScreenProj() {
         if (screenProj == null) screenProj = new Matrix4();
         screenProj.setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+    }
+
+    private void leaveMatch() {
+        if (navigatingToMenu) return;
+        navigatingToMenu = true;
+        navigator.showMainMenu(serverUrl, username);
+    }
+
+    private void handleSessionDisconnected() {
+        if (disposed || navigatingToMenu) return;
+        leaveMatch();
     }
 
     private void applyMusicPreferences() {
