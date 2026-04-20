@@ -796,7 +796,7 @@ public final class HudRenderer {
     private void drawPanel(float x, float y, float w, float h, float alpha) {
         shapes.setProjectionMatrix(screenProj);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        shapes.setColor(0.16f, 0.16f, 0.18f, alpha);
+        shapes.setColor(0.52f, 0.52f, 0.56f, alpha);
         shapes.rect(x, y, w, h);
         shapes.end();
     }
@@ -850,7 +850,7 @@ public final class HudRenderer {
     }
 
     private float hudTextPanelAlpha() {
-        return inputHandler.isAndroid() ? 0.028f : 0.06f;
+        return inputHandler.isAndroid() ? 0.012f : 0.035f;
     }
 
     private void drawShadowedText(BitmapFont bitmapFont, String text, float x, float y) {
