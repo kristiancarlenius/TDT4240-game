@@ -240,14 +240,14 @@ public final class ServerWorldStepSystem {
     private static WeaponRenderSpec weaponRenderSpec(WeaponType t) {
         if (t == null) return new WeaponRenderSpec(0f, 0f, 1.55f, 0f);
         switch (t) {
-            case CROSSBOW:     return new WeaponRenderSpec(0.03f, -0.01f, 1.72f, 0f);
-            case PISTOL:       return new WeaponRenderSpec(0.02f, -0.05f, 1.82f, 0f);
-            case UZI:          return new WeaponRenderSpec(0.02f, -0.04f, 1.62f, 0f);
-            case AK:           return new WeaponRenderSpec(0.03f, -0.04f, 1.62f, 0f);
-            case MACHINEGUN:   return new WeaponRenderSpec(0.04f, -0.02f, 1.74f, 0f);
-            case SHOTGUN:      return new WeaponRenderSpec(0.03f, -0.03f, 1.78f, 0f);
-            case SNIPER:       return new WeaponRenderSpec(0.04f, -0.04f, 1.68f, 0f);
-            case FLAMETHROWER: return new WeaponRenderSpec(0.03f, -0.03f, 1.68f, 0f);
+            case CROSSBOW:     return new WeaponRenderSpec(0.03f, -0.01f, 1.746f, 0f);
+            case PISTOL:       return new WeaponRenderSpec(0.02f, -0.05f, 1.746f, 0f);
+            case UZI:          return new WeaponRenderSpec(0.02f, -0.04f, 1.746f, 0f);
+            case AK:           return new WeaponRenderSpec(0.03f, -0.04f, 1.653f, 0f);
+            case MACHINEGUN:   return new WeaponRenderSpec(0.04f, -0.02f, 1.742f, 0f);
+            case SHOTGUN:      return new WeaponRenderSpec(0.03f, -0.03f, 1.746f, 0f);
+            case SNIPER:       return new WeaponRenderSpec(0.04f, -0.04f, 1.560f, 0f);
+            case FLAMETHROWER: return new WeaponRenderSpec(0.03f, -0.03f, 1.746f, 0f);
             default:           return new WeaponRenderSpec(0f, 0f, 1.55f, 0f);
         }
     }
