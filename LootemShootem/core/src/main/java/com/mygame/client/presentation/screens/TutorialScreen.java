@@ -147,12 +147,12 @@ public final class TutorialScreen implements Screen {
         titleFont.setColor(new Color(1f, 0.82f, 0.15f, 1f));
         String title = "HOW TO PLAY";
         layout.setText(titleFont, title);
-        titleFont.draw(batch, title, (sw - layout.width) / 2f, sh - 42f * uiScale());
+        titleFont.draw(batch, title, (sw - layout.width) / 2f, sh - 40f * uiScale());
 
         font.setColor(Color.LIGHT_GRAY);
         String pageLabel = "Page " + (currentPage + 1) + " / " + PAGE_COUNT;
         layout.setText(font, pageLabel);
-        font.draw(batch, pageLabel, (sw - layout.width) / 2f, sh - 86f * uiScale());
+        font.draw(batch, pageLabel, (sw - layout.width) / 2f, sh - 76f * uiScale());
 
         switch (currentPage) {
             case 0:
@@ -175,7 +175,7 @@ public final class TutorialScreen implements Screen {
 
     private void drawControlsPage(int sw, int sh) {
         float marginX = sw * 0.06f;
-        float tableTop = sh - 150f * uiScale();
+        float tableTop = sh - 126f * uiScale();
         float halfWidth = sw * 0.39f;
         float sectionGap = 28f * uiScale();
         float rowGap = 34f * uiScale();
@@ -208,13 +208,13 @@ public final class TutorialScreen implements Screen {
         drawControlTable(desktopRows, desktopX, tableTop - sectionGap, keyColW, actionColW, rowGap);
         drawControlTable(androidRows, androidX, tableTop - sectionGap, keyColW, actionColW, rowGap);
 
-        float lowerY = tableTop - rowGap * 7.2f;
+        float lowerY = tableTop - rowGap * 6.6f;
         drawSectionHeader("PICKUPS", marginX, lowerY);
         drawPickupRow(pickupHealTex, "Health restore", marginX, lowerY - sectionGap);
         drawPickupRow(pickupSpeedTex, "Speed boost (5 s)", marginX, lowerY - sectionGap - rowGap);
         drawPickupRow(pickupWeaponTex, "New weapon (fills slot 2)", marginX, lowerY - sectionGap - rowGap * 2f);
 
-        float tipsY = lowerY - rowGap * 4.3f;
+        float tipsY = lowerY - rowGap * 3.8f;
         drawSectionHeader("TIPS", marginX, tipsY);
         drawBulletLine("You carry up to 2 weapons. Switch at any time.", marginX, tipsY - sectionGap, sw * 0.86f);
         drawBulletLine("Dying drops your secondary weapon for other players.", marginX, tipsY - sectionGap - rowGap, sw * 0.86f);
@@ -227,7 +227,7 @@ public final class TutorialScreen implements Screen {
         float totalWidth = colWidth * 2f + gap;
         float leftX = (sw - totalWidth) * 0.5f;
         float rightX = leftX + colWidth + gap;
-        float startY = sh - 150f * uiScale();
+        float startY = sh - 126f * uiScale();
         float rowGap = 108f * uiScale();
 
         drawSectionHeader("WEAPON INFO", leftX, startY);
@@ -242,7 +242,7 @@ public final class TutorialScreen implements Screen {
     private void drawTilesPage(int sw, int sh) {
         float contentWidth = sw * 0.72f;
         float x = (sw - contentWidth) * 0.5f;
-        float y = sh - 150f * uiScale();
+        float y = sh - 126f * uiScale();
         float rowGap = 102f * uiScale();
 
         drawSectionHeader("TILE INFO", x, y);
