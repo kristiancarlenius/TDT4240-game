@@ -31,6 +31,7 @@ public final class InputHandler {
     private float fireBtnX;
     private float fireBtnY;
     private float fireBtnR;
+    private float fireBtnTouchR;
     private float pauseBtnX;
     private float pauseBtnY;
     private float pauseBtnSize;
@@ -42,6 +43,7 @@ public final class InputHandler {
     private boolean touchFireBurstPending = false;
     private boolean desktopSwitchLatch = false;
     private boolean desktopReloadLatch = false;
+    private int aimPointer = -1;
     private int switchPointer = -1;
     private int reloadPointer = -1;
     private int firePointer = -1;
@@ -54,6 +56,7 @@ public final class InputHandler {
         if (isAndroidApp()) {
             moveStick = new VirtualJoystickView(0f, 0f);
             aimStick = new VirtualJoystickView(0f, 0f);
+            aimStick.setThumbVisible(false);
             refreshMobileLayout();
             registerTouchProcessor();
         }
@@ -125,32 +128,33 @@ public final class InputHandler {
         int sw = Gdx.graphics.getWidth();
         int sh = Gdx.graphics.getHeight();
         boolean swapped = prefs.isControlsSwapped();
-        float scale = prefs.getTouchJoystickScale();
+        float scale = prefs.getTouchJoystickScale() * mobileUiScale();
 
-        float stickY = sh * 0.24f;
-        float edgeMargin = Math.max(88f, 112f * scale);
-        float moveX = swapped ? sw - edgeMargin : edgeMargin;
-        float aimX = swapped ? edgeMargin : sw - edgeMargin;
+        float moveRadius = 76f * scale;
+        float aimRadius = 108f * scale;
+        float stickY = Math.max(aimRadius + 42f, sh * 0.24f);
+        float moveMargin = Math.max(moveRadius + 28f, sw * 0.11f);
+        float aimMargin = Math.max(aimRadius + 30f, sw * 0.13f);
+        float moveX = swapped ? sw - moveMargin : moveMargin;
+        float aimX = swapped ? aimMargin : sw - aimMargin;
 
         moveStick.setCenter(moveX, stickY);
         aimStick.setCenter(aimX, stickY);
-        moveStick.setVisuals(scale, prefs.getTouchJoystickOpacity());
-        aimStick.setVisuals(scale, prefs.getTouchJoystickOpacity());
+        moveStick.setBaseRadius(moveRadius, prefs.getTouchJoystickOpacity());
+        aimStick.setBaseRadius(aimRadius, prefs.getTouchJoystickOpacity());
 
         switchBtnX = aimX;
-        switchBtnY = Math.min(sh - 120f, stickY + 130f * scale);
+        switchBtnY = Math.min(sh - 136f, stickY + aimRadius + 34f);
         switchBtnR = 38f * scale;
 
-        reloadBtnX = aimX - (swapped ? -92f : 92f) * scale;
-        reloadBtnY = Math.min(sh - 132f, stickY + 122f * scale);
+        reloadBtnX = aimX - (swapped ? -108f : 108f) * scale;
+        reloadBtnY = Math.min(sh - 148f, stickY + aimRadius + 24f);
         reloadBtnR = 34f * scale;
 
-        float fireOffset = 78f * scale;
-        fireBtnX = aimX + (swapped ? -fireOffset : fireOffset);
-        fireBtnY = Math.max(96f, stickY + 6f * scale);
-        fireBtnR = 48f * scale;
-        fireBtnX = Math.max(fireBtnR + 24f, Math.min(sw - fireBtnR - 24f, fireBtnX));
-        fireBtnY = Math.max(fireBtnR + 24f, Math.min(sh - fireBtnR - 24f, fireBtnY));
+        fireBtnX = aimX;
+        fireBtnY = stickY;
+        fireBtnR = aimRadius * 0.49f;
+        fireBtnTouchR = fireBtnR * 1.24f;
 
         pauseBtnSize = PAUSE_BTN_SIZE;
         pauseBtnX = PAUSE_BTN_MARGIN;
@@ -161,6 +165,7 @@ public final class InputHandler {
         if (!isAndroid()) return;
         moveStick.reset();
         aimStick.reset();
+        aimPointer = -1;
         switchPointer = -1;
         reloadPointer = -1;
         firePointer = -1;
@@ -256,25 +261,19 @@ public final class InputHandler {
                     return true;
                 }
 
-                float bx = sx - switchBtnX;
-                float by = worldY - switchBtnY;
-                if (switchPointer == -1 && bx * bx + by * by <= switchBtnR * switchBtnR) {
+                if (insideCircle(sx, worldY, switchBtnX, switchBtnY, switchBtnR) && switchPointer == -1) {
                     switchPointer = pointer;
                     touchSwitchPending = true;
                     return true;
                 }
 
-                float rx = sx - reloadBtnX;
-                float ry = worldY - reloadBtnY;
-                if (reloadPointer == -1 && rx * rx + ry * ry <= reloadBtnR * reloadBtnR) {
+                if (insideCircle(sx, worldY, reloadBtnX, reloadBtnY, reloadBtnR) && reloadPointer == -1) {
                     reloadPointer = pointer;
                     touchReloadPending = true;
                     return true;
                 }
 
-                float fx = sx - fireBtnX;
-                float fy = worldY - fireBtnY;
-                if (firePointer == -1 && fx * fx + fy * fy <= fireBtnR * fireBtnR) {
+                if (insideCircle(sx, worldY, fireBtnX, fireBtnY, fireBtnTouchR) && firePointer == -1) {
                     firePointer = pointer;
                     touchFireHeld = false;
                     fireTouchDownAtMs = System.currentTimeMillis();
@@ -282,7 +281,10 @@ public final class InputHandler {
                 }
 
                 if (moveStick.touchDown(sx, sy, pointer, sh)) return true;
-                if (aimStick.touchDown(sx, sy, pointer, sh)) return true;
+                if (isInsideAimRing(sx, worldY) && aimStick.touchDown(sx, sy, pointer, sh)) {
+                    aimPointer = pointer;
+                    return true;
+                }
                 return false;
             }
 
@@ -315,7 +317,10 @@ public final class InputHandler {
                     return true;
                 }
                 if (moveStick.touchUp(sx, sy, pointer)) return true;
-                if (aimStick.touchUp(sx, sy, pointer)) return true;
+                if (aimStick.touchUp(sx, sy, pointer)) {
+                    if (pointer == aimPointer) aimPointer = -1;
+                    return true;
+                }
                 return false;
             }
         });
@@ -323,12 +328,35 @@ public final class InputHandler {
 
     public void update(float delta) {
         if (!isAndroid()) return;
-        if (firePointer != -1 && !touchFireHeld) {
+        if (firePointer != -1 && fireTouchDownAtMs != 0L && !touchFireHeld) {
             long heldMs = System.currentTimeMillis() - fireTouchDownAtMs;
             if (heldMs >= FIRE_HOLD_MS) {
                 touchFireHeld = true;
             }
         }
+    }
+
+    public float getAimFireZoneRadius() {
+        return !isAndroid() ? 0f : fireBtnR;
+    }
+
+    private boolean isInsideAimRing(float x, float y) {
+        float dx = x - aimStick.getBaseX();
+        float dy = y - aimStick.getBaseY();
+        float dist2 = dx * dx + dy * dy;
+        return dist2 <= aimStick.getBaseRadius() * aimStick.getBaseRadius()
+                && dist2 > fireBtnTouchR * fireBtnTouchR;
+    }
+
+    private boolean insideCircle(float x, float y, float cx, float cy, float r) {
+        float dx = x - cx;
+        float dy = y - cy;
+        return dx * dx + dy * dy <= r * r;
+    }
+
+    private float mobileUiScale() {
+        float shortSide = Math.min(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        return Math.max(1.0f, Math.min(1.75f, shortSide / 720f));
     }
 
     private boolean isAndroidApp() {
