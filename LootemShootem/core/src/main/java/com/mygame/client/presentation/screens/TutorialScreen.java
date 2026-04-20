@@ -214,7 +214,7 @@ public final class TutorialScreen implements Screen {
         drawPickupRow(pickupSpeedTex, "Speed boost (5 s)", marginX, lowerY - sectionGap - rowGap);
         drawPickupRow(pickupWeaponTex, "New weapon (fills slot 2)", marginX, lowerY - sectionGap - rowGap * 2f);
 
-        float tipsY = lowerY - rowGap * 3.4f;
+        float tipsY = lowerY - rowGap * 3.8f;
         drawSectionHeader("TIPS", marginX, tipsY);
         drawBulletLine("You carry up to 2 weapons. Switch at any time.", marginX, tipsY - sectionGap, sw * 0.86f);
         drawBulletLine("Dying drops your secondary weapon for other players.", marginX, tipsY - sectionGap - rowGap, sw * 0.86f);
