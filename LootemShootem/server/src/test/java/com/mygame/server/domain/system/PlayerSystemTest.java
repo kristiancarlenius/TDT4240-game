@@ -1,5 +1,6 @@
 package com.mygame.server.domain.system;
 
+import com.mygame.server.data.weapon.WeaponRegistry;
 import com.mygame.server.domain.model.PlayerState;
 import com.mygame.server.domain.model.ServerGameState;
 import com.mygame.shared.dto.TileType;
@@ -25,7 +26,7 @@ class PlayerSystemTest {
         TileType[] tiles = new TileType[10 * 10];
         for (int i = 0; i < tiles.length; i++) tiles[i] = TileType.FLOOR;
         state = ServerGameState.fromTiles("test", 10, 10, tiles);
-        playerSystem = new PlayerSystem(state);
+        playerSystem = new PlayerSystem(state, new WeaponRegistry());
 
         victim = new PlayerState("v1", "Victim", new Vec2(5f, 5f));
         killer = new PlayerState("k1", "Killer", new Vec2(3f, 3f));

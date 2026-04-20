@@ -1,5 +1,6 @@
 package com.mygame.server.domain.system;
 
+import com.mygame.server.data.weapon.WeaponRegistry;
 import com.mygame.server.domain.model.PlayerState;
 import com.mygame.server.domain.model.ProjectileState;
 import com.mygame.server.domain.model.ServerGameState;
@@ -33,7 +34,7 @@ class ProjectileSystemTest {
         }
 
         state = ServerGameState.fromTiles("test", 10, 10, tiles);
-        playerSystem = new PlayerSystem(state);
+        playerSystem = new PlayerSystem(state, new WeaponRegistry());
         projectileSystem = new ProjectileSystem(state, playerSystem);
     }
 
