@@ -19,11 +19,11 @@ public final class PreferencesRepository implements PreferencesPort {
     private static final String KEY_TOUCH_JOYSTICK_OPACITY = "touch_joystick_opacity";
     private static final String KEY_SKIN_ID          = "skin_id";
 
-    /** Default widget for each slot ordinal: LEFT→KILL_FEED, CENTER→TIME_ALIVE, RIGHT→LEADERBOARD */
+    /** Default widget for each slot ordinal: LEFT→LEADERBOARD, CENTER→TIME_ALIVE, RIGHT→MINIMAP */
     private static final HudWidget[] HUD_DEFAULTS = {
-            HudWidget.KILL_FEED,
+            HudWidget.LEADERBOARD,
             HudWidget.TIME_ALIVE,
-            HudWidget.LEADERBOARD
+            HudWidget.MINIMAP
     };
 
     private final Preferences prefs = Gdx.app.getPreferences(PREFS_NAME);

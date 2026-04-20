@@ -27,7 +27,7 @@ import java.util.List;
 
 public final class HudRenderer {
 
-    private static final int MAX_KILL_FEED = 5;
+    private static final int MAX_KILL_FEED = 4;
     private static final int LEADERBOARD_ROWS = 9; // plus current player if outside top 9
 
     private final WorldState      worldState;
@@ -122,9 +122,10 @@ public final class HudRenderer {
             int ty = Gdx.graphics.getHeight() - Gdx.input.getY();
             int sw = Gdx.graphics.getWidth();
             int sh = Gdx.graphics.getHeight();
+            HudSlot lbSlot = leaderboardSlot();
             boolean leaderboardTapZone = inputHandler.isAndroid()
                     ? tx < sw * 0.42f && ty < inputHandler.getPauseBtnY() && ty > inputHandler.getPauseBtnY() - hudPx(240)
-                    : tx > sw * 0.6f && ty > sh * 0.82f;
+                    : (lbSlot == HudSlot.TOP_LEFT ? tx < sw * 0.4f : lbSlot == HudSlot.TOP_CENTER ? tx > sw * 0.3f && tx < sw * 0.7f : tx > sw * 0.6f) && ty > sh * 0.82f;
             if (!isInsideMinimap(tx, ty) && leaderboardTapZone) {
                 if (!lbTouchConsumed) {
                     leaderboardMode = (leaderboardMode + 1) % LB_MODES;
@@ -297,9 +298,9 @@ public final class HudRenderer {
         for (HudSlot slot : HudSlot.values()) {
             HudWidget widget = prefs != null ? prefs.getHudWidget(slot) : defaultWidget(slot);
             switch (widget) {
-                case KILL_FEED:   drawKillFeedInSlot(slot, sw, sh);        break;
-                case TIME_ALIVE:  drawTimeAliveInSlot(me, slot, sw, sh);   break;
+                case TIME_ALIVE:  drawTimeAliveInSlot(me, slot, sw, sh);     break;
                 case LEADERBOARD: drawLeaderboardInSlot(snap, slot, sw, sh); break;
+                default: break; // MINIMAP is drawn separately
             }
         }
 
@@ -308,34 +309,20 @@ public final class HudRenderer {
 
     private static HudWidget defaultWidget(HudSlot slot) {
         switch (slot) {
-            case TOP_LEFT:   return HudWidget.KILL_FEED;
+            case TOP_LEFT:   return HudWidget.LEADERBOARD;
             case TOP_CENTER: return HudWidget.TIME_ALIVE;
-            case TOP_RIGHT:  return HudWidget.LEADERBOARD;
-            default:         return HudWidget.KILL_FEED;
+            case TOP_RIGHT:  return HudWidget.MINIMAP;
+            default:         return HudWidget.LEADERBOARD;
         }
     }
 
-    // ── Kill feed ──────────────────────────────────────────────────────────────
+    // ── Kill feed — drawn below leaderboard ───────────────────────────────────
 
-    private void drawKillFeedInSlot(HudSlot slot, int sw, int sh) {
+    private void drawKillFeedBelowLeaderboard(HudSlot slot, float startY, int sw) {
         if (killFeed.isEmpty()) return;
-        if (inputHandler.isAndroid()) {
-            float y = mobileWidgetTopY(HudWidget.KILL_FEED, sh);
-            int shown = 0;
-            for (int i = killFeed.size() - 1; i >= 0 && shown < 3; i--) {
-                String msg = killFeed.get(i);
-                font.setColor(1f, 0.85f, 0.40f, 1f);
-                layout.setText(font, msg);
-                drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)),
-                        (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
-                drawShadowedText(font, msg, slotX(slot, layout.width, sw), y);
-                y -= hudPx(22);
-                shown++;
-            }
-            return;
-        }
-        float y = inputHandler.isAndroid() ? mobileWidgetTopY(HudWidget.KILL_FEED, sh) : sh - hudTopMargin();
-        for (String msg : killFeed) {
+        float y = startY - hudPx(6); // small gap below last leaderboard row
+        for (int i = killFeed.size() - 1; i >= 0; i--) {
+            String msg = killFeed.get(i);
             font.setColor(1f, 0.85f, 0.40f, 1f);
             layout.setText(font, msg);
             drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)),
@@ -354,7 +341,7 @@ public final class HudRenderer {
         String text = String.format("Time: %d:%02d", mins, secs);
         font.setColor(Color.LIGHT_GRAY);
         layout.setText(font, text);
-        float y = inputHandler.isAndroid() ? mobileWidgetTopY(HudWidget.TIME_ALIVE, sh) : sh - hudTopMargin();
+        float y = slotTopY(slot, sh);
         drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)), (int) (y - hudPx(18)),
                 (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
         drawShadowedText(font, text, slotX(slot, layout.width, sw), y);
@@ -389,7 +376,7 @@ public final class HudRenderer {
         for (PlayerDto p : snap.players) sorted.add(p);
         sorted.sort(cmp.reversed());
 
-        float y    = inputHandler.isAndroid() ? mobileWidgetTopY(HudWidget.LEADERBOARD, sh) : sh - hudTopMargin();
+        float y    = slotTopY(slot, sh);
         float rowH = hudPx(20);
 
         // Header with mode label and cycle hint
@@ -441,8 +428,11 @@ public final class HudRenderer {
                 drawTextBadge((int) (slotX(slot, layout.width, sw) - hudPx(6)),
                         (int) (y - hudPx(18)), (int) (layout.width + hudPx(12)), hudPx(24), hudTextPanelAlpha());
                 drawShadowedText(font, line, slotX(slot, layout.width, sw), y);
+                y -= rowH;
             }
         }
+
+        drawKillFeedBelowLeaderboard(slot, y, sw);
     }
 
     private int lbValue(PlayerDto p) {
@@ -524,45 +514,13 @@ public final class HudRenderer {
                     layout.width + hudPx(20), hudPx(28), 0.10f);
         }
 
-        if (!killFeed.isEmpty()) {
-            float panelX;
-            float panelY;
-            float panelW;
-            float panelH;
-            if (inputHandler.isAndroid()) {
-                StringBuilder line = new StringBuilder();
-                int shown = 0;
-                for (String msg : killFeed) {
-                    if (shown > 0) line.append("   |   ");
-                    line.append(msg);
-                    shown++;
-                    if (shown >= 3) break;
-                }
-                layout.setText(font, line.toString());
-                panelW = layout.width + hudPx(20);
-                panelH = hudPx(32);
-                panelX = mobileWidgetX(HudWidget.KILL_FEED, layout.width, sw) - hudPx(10);
-                panelY = mobileWidgetTopY(HudWidget.KILL_FEED, sh) - hudPx(22);
-            } else {
-                float maxWidth = 0f;
-                for (String msg : killFeed) {
-                    layout.setText(font, msg);
-                    maxWidth = Math.max(maxWidth, layout.width);
-                }
-                panelW = maxWidth + hudPx(20);
-                panelH = hudPx(24) * killFeed.size() + hudPx(8);
-                panelX = mobileWidgetX(HudWidget.KILL_FEED, maxWidth, sw) - hudPx(10);
-                panelY = mobileWidgetTopY(HudWidget.KILL_FEED, sh) - hudPx(18) - hudPx(22) * killFeed.size();
-            }
-            drawPanel(panelX, panelY, panelW, panelH, 0.08f);
-        }
-
         if (snap != null && snap.players != null && snap.players.length > 0) {
+            HudSlot lbSlot = leaderboardSlot();
             float leaderboardWidth = inputHandler.isAndroid() ? hudPx(210) : hudPx(170);
-            float rows = LEADERBOARD_ROWS + 2;
-            float panelX = mobileWidgetX(HudWidget.LEADERBOARD, leaderboardWidth, sw) - hudPx(10);
-            float panelY = mobileWidgetTopY(HudWidget.LEADERBOARD, sh) - hudPx(18) - hudPx(20) * rows;
-            drawPanel(panelX, panelY, leaderboardWidth + hudPx(20), hudPx(22) * rows + hudPx(12), 0.08f);
+            float lbRows = LEADERBOARD_ROWS + 2 + (killFeed.isEmpty() ? 0 : killFeed.size() + 0.5f);
+            float panelX = slotPanelX(lbSlot, leaderboardWidth, sw);
+            float panelY = slotTopY(lbSlot, sh) - hudPx(18) - hudPx(20) * lbRows;
+            drawPanel(panelX, panelY, leaderboardWidth + hudPx(20), hudPx(22) * lbRows + hudPx(12), 0.08f);
         }
     }
 
@@ -625,7 +583,7 @@ public final class HudRenderer {
         int miniSize = minimapExpanded
                 ? Math.round(Math.min(sw, sh) * 0.80f)
                 : hudPx(MINI_SIZE);
-        float miniX  = minimapExpanded ? (sw - miniSize) * 0.5f : sw - miniSize - hudPx(MINI_MARGIN + 12);
+        float miniX  = minimapX(sw, miniSize);
         float miniY  = minimapExpanded ? (sh - miniSize) * 0.5f : currentMinimapY(sh);
         float scaleX = (float) miniSize / map.width;
         float scaleY = (float) miniSize / map.height;
@@ -720,16 +678,7 @@ public final class HudRenderer {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    /**
-     * Returns the x coordinate at which to start drawing text of the given width
-     * so that it is left-aligned, centered, or right-aligned for the slot.
-     */
     private float slotX(HudSlot slot, float textWidth, int sw) {
-        if (inputHandler.isAndroid()) {
-            if (slot == HudSlot.TOP_LEFT) return mobileWidgetX(HudWidget.KILL_FEED, textWidth, sw);
-            if (slot == HudSlot.TOP_CENTER) return mobileWidgetX(HudWidget.TIME_ALIVE, textWidth, sw);
-            if (slot == HudSlot.TOP_RIGHT) return mobileWidgetX(HudWidget.LEADERBOARD, textWidth, sw);
-        }
         switch (slot) {
             case TOP_LEFT:   return hudSideMargin();
             case TOP_CENTER: return (sw - textWidth) / 2f;
@@ -738,15 +687,46 @@ public final class HudRenderer {
         }
     }
 
-    private float mobileWidgetX(HudWidget widget, float textWidth, int sw) {
-        switch (widget) {
-            case LEADERBOARD:
-                return hudSideMargin();
-            case KILL_FEED:
-                return sw - textWidth - hudSideMargin();
-            case TIME_ALIVE:
-            default:
-                return (sw - textWidth) / 2f;
+    private float slotPanelX(HudSlot slot, float contentWidth, int sw) {
+        switch (slot) {
+            case TOP_LEFT:   return hudSideMargin() - hudPx(10);
+            case TOP_CENTER: return (sw - contentWidth) / 2f - hudPx(10);
+            case TOP_RIGHT:  return sw - contentWidth - hudSideMargin() - hudPx(10);
+            default:         return hudSideMargin() - hudPx(10);
+        }
+    }
+
+    private float slotTopY(HudSlot slot, int sh) {
+        if (inputHandler.isAndroid() && slot != HudSlot.TOP_CENTER) {
+            return inputHandler.getPauseBtnY() - hudPx(12);
+        }
+        return sh - hudTopMargin();
+    }
+
+    private HudSlot leaderboardSlot() {
+        if (prefs != null) {
+            for (HudSlot s : HudSlot.values()) {
+                if (prefs.getHudWidget(s) == HudWidget.LEADERBOARD) return s;
+            }
+        }
+        return HudSlot.TOP_LEFT;
+    }
+
+    private HudSlot minimapSlot() {
+        if (prefs != null) {
+            for (HudSlot s : HudSlot.values()) {
+                if (prefs.getHudWidget(s) == HudWidget.MINIMAP) return s;
+            }
+        }
+        return HudSlot.TOP_RIGHT;
+    }
+
+    private float minimapX(int sw, int miniSize) {
+        if (minimapExpanded) return (sw - miniSize) * 0.5f;
+        switch (minimapSlot()) {
+            case TOP_LEFT:   return hudPx(MINI_MARGIN + 12);
+            case TOP_CENTER: return (sw - miniSize) * 0.5f;
+            default:         return sw - miniSize - hudPx(MINI_MARGIN + 12);
         }
     }
 
@@ -754,10 +734,6 @@ public final class HudRenderer {
         switch (widget) {
             case LEADERBOARD:
                 return inputHandler.getPauseBtnY() - hudPx(12);
-            case KILL_FEED:
-                return inputHandler.isAndroid()
-                        ? currentMinimapY(sh) - hudPx(18)
-                        : sh - hudTopMargin();
             case TIME_ALIVE:
             default:
                 return sh - hudTopMargin();
@@ -783,7 +759,7 @@ public final class HudRenderer {
         int miniSize = minimapExpanded
                 ? Math.round(Math.min(sw, sh) * 0.80f)
                 : hudPx(MINI_SIZE);
-        float miniX = minimapExpanded ? (sw - miniSize) * 0.5f : sw - miniSize - hudPx(MINI_MARGIN + 12);
+        float miniX = minimapX(sw, miniSize);
         float miniY = minimapExpanded ? (sh - miniSize) * 0.5f : currentMinimapY(sh);
         return x >= miniX && x <= miniX + miniSize && y >= miniY && y <= miniY + miniSize;
     }

@@ -280,7 +280,7 @@ public final class SettingsScreen implements Screen {
 
     private static String widgetLabel(HudWidget widget) {
         switch (widget) {
-            case KILL_FEED:   return "KILL FEED";
+            case MINIMAP:     return "MINIMAP";
             case TIME_ALIVE:  return "TIME ALIVE";
             case LEADERBOARD: return "LEADERBOARD";
             default:          return widget.name();
