@@ -122,6 +122,7 @@ public final class GameScreen implements Screen {
     @Override
     public void render(float delta) {
         handlePauseInput();
+        if (disposed) return;
 
         if (!paused) controller.update(delta);
         worldRenderer.updateCamera();

@@ -517,11 +517,11 @@ public final class WorldRenderer {
         if (t == null) return new WeaponRenderSpec(2.3285f, 0.24f, 0.50f, 0f, 0f);
         switch (t) {
             case CROSSBOW:
-                return new WeaponRenderSpec(2.3285f, 0.20f, 0.48f, 0.03f, -0.01f);
+                return new WeaponRenderSpec(2.3285f, 0.25f, 0.48f, 0.03f, -0.01f);
             case PISTOL:
-                return new WeaponRenderSpec(2.3285f, 0.19f, 0.73f, 0.02f, -0.05f);
+                return new WeaponRenderSpec(2.3285f, 0.25f, 0.73f, 0.02f, -0.05f);
             case UZI:
-                return new WeaponRenderSpec(2.3285f, 0.24f, 0.68f, 0.02f, -0.04f);
+                return new WeaponRenderSpec(2.3285f, 0.25f, 0.68f, 0.02f, -0.04f);
             case AK:
                 return new WeaponRenderSpec(2.3285f, 0.29f, 0.60f, 0.03f, -0.04f);
             case MACHINEGUN:
@@ -560,12 +560,14 @@ public final class WorldRenderer {
         float weapH = (wt.getWidth() > 0)
                 ? weapW * wt.getHeight() / (float) wt.getWidth()
                 : 0.7484f;
-        float originY = weapH * spec.gripY;
+        float originY  = weapH * spec.gripY;
+        float drawOriY = flipY ? weapH - originY : originY;
+        float drawY    = handY - drawOriY;
 
         batch.draw(wt,
                 handX - originX,
-                handY - originY,
-                originX, originY,
+                drawY,
+                originX, drawOriY,
                 weapW, weapH,
                 1f, 1f,
                 angle,

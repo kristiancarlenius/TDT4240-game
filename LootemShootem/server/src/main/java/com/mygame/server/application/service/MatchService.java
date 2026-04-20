@@ -38,7 +38,7 @@ public final class MatchService {
         this.state          = mapProvider.provide(mapId);
         this.weaponRegistry = loadWeapons("weapons/weapons.json");
 
-        PlayerSystem      player     = new PlayerSystem(state);
+        PlayerSystem      player     = new PlayerSystem(state, weaponRegistry);
         CollisionSystem   collision  = new CollisionSystem(state);
         ProjectileSystem  projectile = new ProjectileSystem(state, player);
         PickupSpawnSystem pickup     = new PickupSpawnSystem(state, weaponRegistry);
