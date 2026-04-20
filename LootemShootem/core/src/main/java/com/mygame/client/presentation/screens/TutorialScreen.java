@@ -118,11 +118,11 @@ public final class TutorialScreen implements Screen {
                     navigator.showMainMenu(serverUrl, username);
                     return true;
                 }
-                if (inside(prevBtnX(sw), navBtnY(), BTN_W, BTN_H, sx, worldY)) {
+                if (inside(prevBtnX(sw), navBtnY(), navBtnW(), BTN_H, sx, worldY)) {
                     currentPage = Math.max(0, currentPage - 1);
                     return true;
                 }
-                if (inside(nextBtnX(sw), navBtnY(), BTN_W, BTN_H, sx, worldY)) {
+                if (inside(nextBtnX(sw), navBtnY(), navBtnW(), BTN_H, sx, worldY)) {
                     currentPage = Math.min(PAGE_COUNT - 1, currentPage + 1);
                     return true;
                 }
@@ -167,8 +167,8 @@ public final class TutorialScreen implements Screen {
         }
 
         drawButtonLabel("BACK", backBtnX(sw), backBtnY(), BTN_W, BTN_H);
-        drawButtonLabel("PREV", prevBtnX(sw), navBtnY(), BTN_W, BTN_H);
-        drawButtonLabel("NEXT", nextBtnX(sw), navBtnY(), BTN_W, BTN_H);
+        drawButtonLabel("<<", prevBtnX(sw), navBtnY(), navBtnW(), BTN_H);
+        drawButtonLabel(">>", nextBtnX(sw), navBtnY(), navBtnW(), BTN_H);
 
         batch.end();
     }
@@ -214,7 +214,7 @@ public final class TutorialScreen implements Screen {
         drawPickupRow(pickupSpeedTex, "Speed boost (5 s)", marginX, lowerY - sectionGap - rowGap);
         drawPickupRow(pickupWeaponTex, "New weapon (fills slot 2)", marginX, lowerY - sectionGap - rowGap * 2f);
 
-        float tipsY = lowerY - rowGap * 3.8f;
+        float tipsY = lowerY - rowGap * 3.4f;
         drawSectionHeader("TIPS", marginX, tipsY);
         drawBulletLine("You carry up to 2 weapons. Switch at any time.", marginX, tipsY - sectionGap, sw * 0.86f);
         drawBulletLine("Dying drops your secondary weapon for other players.", marginX, tipsY - sectionGap - rowGap, sw * 0.86f);
@@ -242,7 +242,7 @@ public final class TutorialScreen implements Screen {
     private void drawTilesPage(int sw, int sh) {
         float contentWidth = sw * 0.72f;
         float x = (sw - contentWidth) * 0.5f;
-        float y = sh - 126f * uiScale();
+        float y = sh - 118f * uiScale();
         float rowGap = 102f * uiScale();
 
         drawSectionHeader("TILE INFO", x, y);
@@ -326,15 +326,15 @@ public final class TutorialScreen implements Screen {
     private void drawButtons(int sw) {
         shapes.setProjectionMatrix(proj);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        drawButtonRect(backBtnX(sw), backBtnY(), new Color(0.15f, 0.50f, 0.80f, 1f));
-        drawButtonRect(prevBtnX(sw), navBtnY(), new Color(0.18f, 0.18f, 0.22f, 1f));
-        drawButtonRect(nextBtnX(sw), navBtnY(), new Color(0.18f, 0.18f, 0.22f, 1f));
+        drawButtonRect(backBtnX(sw), backBtnY(), BTN_W, new Color(0.15f, 0.50f, 0.80f, 1f));
+        drawButtonRect(prevBtnX(sw), navBtnY(), navBtnW(), new Color(0.18f, 0.18f, 0.22f, 1f));
+        drawButtonRect(nextBtnX(sw), navBtnY(), navBtnW(), new Color(0.18f, 0.18f, 0.22f, 1f));
         shapes.end();
     }
 
-    private void drawButtonRect(int x, int y, Color color) {
+    private void drawButtonRect(int x, int y, int w, Color color) {
         shapes.setColor(color);
-        shapes.rect(x, y, BTN_W, BTN_H);
+        shapes.rect(x, y, w, BTN_H);
     }
 
     private void drawButtonLabel(String label, int x, int y, int w, int h) {
@@ -352,15 +352,19 @@ public final class TutorialScreen implements Screen {
     }
 
     private int prevBtnX(int sw) {
-        return sw / 2 - BTN_W - 20;
+        return backBtnX(sw) - navBtnW() - 18;
     }
 
     private int nextBtnX(int sw) {
-        return sw / 2 + 20;
+        return backBtnX(sw) + BTN_W + 18;
     }
 
     private int navBtnY() {
-        return 90;
+        return backBtnY();
+    }
+
+    private int navBtnW() {
+        return 58;
     }
 
     private boolean inside(int x, int y, int w, int h, int px, int py) {
