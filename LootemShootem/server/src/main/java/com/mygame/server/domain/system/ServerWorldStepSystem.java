@@ -240,7 +240,7 @@ public final class ServerWorldStepSystem {
     private static WeaponRenderSpec weaponRenderSpec(WeaponType t) {
         if (t == null) return new WeaponRenderSpec(0f, 0f, 1.55f, 0f);
         switch (t) {
-            case CROSSBOW:     return new WeaponRenderSpec(0.03f, -0.01f, 1.746f, 0.700f);
+            case CROSSBOW:     return new WeaponRenderSpec(0.03f, -0.01f, 1.746f, 7.000f);
             case PISTOL:       return new WeaponRenderSpec(0.02f, -0.05f, 1.746f, 0.502f);
             case UZI:          return new WeaponRenderSpec(0.02f, -0.04f, 1.746f, 0.184f);
             case AK:           return new WeaponRenderSpec(0.03f, -0.04f, 1.653f, 0.132f);
