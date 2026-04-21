@@ -240,14 +240,14 @@ public final class ServerWorldStepSystem {
     private static WeaponRenderSpec weaponRenderSpec(WeaponType t) {
         if (t == null) return new WeaponRenderSpec(0f, 0f, 1.55f, 0f);
         switch (t) {
-            case CROSSBOW:     return new WeaponRenderSpec(0.03f, -0.01f, 1.746f, 0f);
-            case PISTOL:       return new WeaponRenderSpec(0.02f, -0.05f, 1.746f, 0f);
-            case UZI:          return new WeaponRenderSpec(0.02f, -0.04f, 1.746f, 0f);
-            case AK:           return new WeaponRenderSpec(0.03f, -0.04f, 1.653f, 0f);
-            case MACHINEGUN:   return new WeaponRenderSpec(0.04f, -0.02f, 1.742f, 0f);
-            case SHOTGUN:      return new WeaponRenderSpec(0.03f, -0.03f, 1.746f, 0f);
-            case SNIPER:       return new WeaponRenderSpec(0.04f, -0.04f, 1.560f, 0f);
-            case FLAMETHROWER: return new WeaponRenderSpec(0.03f, -0.03f, 1.746f, 0f);
+            case CROSSBOW:     return new WeaponRenderSpec(0.03f, -0.01f, 1.746f, 0.350f);
+            case PISTOL:       return new WeaponRenderSpec(0.02f, -0.05f, 1.746f, 0.246f);
+            case UZI:          return new WeaponRenderSpec(0.02f, -0.04f, 1.746f, 0.184f);
+            case AK:           return new WeaponRenderSpec(0.03f, -0.04f, 1.653f, 0.132f);
+            case MACHINEGUN:   return new WeaponRenderSpec(0.04f, -0.02f, 1.742f, 0.165f);
+            case SHOTGUN:      return new WeaponRenderSpec(0.03f, -0.03f, 1.746f, 0.094f);
+            case SNIPER:       return new WeaponRenderSpec(0.04f, -0.04f, 1.560f, 0.105f);
+            case FLAMETHROWER: return new WeaponRenderSpec(0.03f, -0.03f, 1.746f, 0.020f);
             default:           return new WeaponRenderSpec(0f, 0f, 1.55f, 0f);
         }
     }
@@ -285,12 +285,15 @@ public final class ServerWorldStepSystem {
         float handX = p.pos.x + (handAnchor[0] + renderSpec.handOffsetX) * CHAR_SIZE;
         float handY = p.pos.y + (handAnchor[1] + renderSpec.handOffsetY) * CHAR_SIZE;
 
+        // Perpendicular barrel offset: flip sign when facing left because the sprite Y is
+        // mirrored vertically (flipY=true on client), which reverses the side direction.
+        float flipSign = p.facing.x < 0f ? -1f : 1f;
         float sx = handX;
         float sy = handY;
         boolean foundSpawn = false;
         for (float factor = 1f; factor >= 0f; factor -= 0.2f) {
-            float candidateX = handX + p.facing.x * (renderSpec.muzzleForward * factor) + rightX * renderSpec.muzzleSide;
-            float candidateY = handY + p.facing.y * (renderSpec.muzzleForward * factor) + rightY * renderSpec.muzzleSide;
+            float candidateX = handX + p.facing.x * (renderSpec.muzzleForward * factor) + rightX * renderSpec.muzzleSide * flipSign;
+            float candidateY = handY + p.facing.y * (renderSpec.muzzleForward * factor) + rightY * renderSpec.muzzleSide * flipSign;
             if (!state.isProjectileBlockedWorld(candidateX, candidateY)) {
                 sx = candidateX;
                 sy = candidateY;
